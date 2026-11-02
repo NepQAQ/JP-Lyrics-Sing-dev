@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0d24" />
+  <title>日语跟唱 · JP Lyrics Sing</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&family=Noto+Sans+SC:wght@400;500&family=Zen+Maru+Gothic:wght@500;700&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css?v=20261102" />
+</head>
+
+<body>
+  <div class="bg-aurora" aria-hidden="true">
+    <span class="blob b1"></span>
+    <span class="blob b2"></span>
+    <span class="blob b3"></span>
+  </div>
+
+  <header class="app-header glass">
+    <div class="brand">
+      <span class="logo">🎤</span>
+      <div class="brand-mode" id="brand-mode">
+        <button id="btn-app-mode" class="brand-mode-btn" type="button" aria-haspopup="listbox"
+          aria-expanded="false" aria-label="切换歌词与日语学习模式" title="切换歌词与日语学习模式">
+          <span class="brand-mode-text">日语跟唱</span>
+          <span class="brand-mode-arrow" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+                stroke-linejoin="round" />
+            </svg>
+          </span>
+        </button>
+        <span class="brand-sub">JP Lyrics Sing</span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button id="btn-mode" class="mode-btn" aria-label="切换跳唱/阅读模式" title="切换跳唱/阅读模式">
+        <span class="mode-icon">🎤</span><span class="mode-text">跟唱</span>
+      </button>
+      <button id="btn-search-history" class="icon-btn" aria-label="搜索历史" title="搜索历史" aria-haspopup="dialog"
+        aria-expanded="false">
+        <span class="icon-btn-glyph" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M3 12A9 9 0 1 0 6.1 5.2" stroke="currentColor" stroke-width="1.8"
+              stroke-linecap="round" />
+            <path d="M3 4.5V9H7.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+              stroke-linejoin="round" />
+            <path d="M12 7.5V12L15 14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+              stroke-linejoin="round" />
+          </svg>
+        </span>
+      </button>
+      <button id="btn-export" class="icon-btn" aria-label="导出歌词" title="导出歌词">
+        <span class="icon-btn-glyph" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 3V15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+              stroke-linejoin="round" />
+            <path d="M7 10L12 15L17 10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+              stroke-linejoin="round" />
+            <path d="M5 19H19" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+          </svg>
+        </span>
+      </button>
+      <button id="btn-theme" class="icon-btn" aria-label="切换主题" title="切换日间/夜间模式">
+        <span class="theme-icon">🌙</span>
+      </button>
+      <button id="btn-toggle-panel" class="icon-btn" aria-label="收起控制面板" title="收起控制面板">
+        <span class="icon-btn-glyph icon-panel-toggle" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M7 14L12 9L17 14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+              stroke-linejoin="round" />
+          </svg>
+        </span>
+      </button>
+    </div>
+  </header>
+
+  <aside class="brand-mode-menu glass" id="brand-mode-menu" role="listbox" hidden>
+    <button class="brand-mode-option active" type="button" data-mode="lyrics" role="option"
+      aria-selected="true">
+      <span class="brand-mode-opt-icon">🎵</span><span>歌词</span>
+    </button>
+    <button class="brand-mode-option" type="button" data-mode="study" role="option"
+      aria-selected="false">
+      <span class="brand-mode-opt-icon">📖</span><span>日语学习</span>
+    </button>
+  </aside>
+
+  <aside id="search-history-popover" class="overrides-popover history-popover glass" role="dialog"
+    aria-labelledby="search-history-title" hidden>
+    <div class="popover-head">
+      <div>
+        <div id="search-history-title" class="popover-title">搜索历史</div>
+        <div class="popover-subtitle">本地缓存</div>
+      </div>
+      <button id="btn-close-search-history" class="icon-btn popover-close" aria-label="关闭搜索历史" title="关闭">×</button>
+    </div>
+    <div id="search-history-list" class="history-list"></div>
+  </aside>
+
+  <aside id="export-popover" class="overrides-popover glass" hidden>
+    <div class="popover-head">
+      <div>
+        <div class="popover-title">导出歌词</div>
+        <div class="popover-subtitle">选择要导出的内容</div>
+      </div>
+      <button id="btn-close-export" class="icon-btn popover-close" aria-label="关闭导出" title="关闭">×</button>
+    </div>
+    <div class="export-checkboxes">
+      <label class="chip"><input type="checkbox" id="export-jp" checked /><span>日语</span></label>
+      <label class="chip"><input type="checkbox" id="export-romaji" checked /><span>罗马音</span></label>
+      <label class="chip"><input type="checkbox" id="export-zh" /><span>中文</span></label>
+    </div>
+    <textarea id="export-output" rows="10" readonly placeholder="点击下方按钮生成..."></textarea>
+    <div class="row">
+      <button id="btn-generate-export" class="primary">生成</button>
+      <button id="btn-copy-export">复制到剪贴板</button>
+      <button id="btn-save-export">保存为 TXT</button>
+    </div>
+  </aside>
+
+  <section id="panel" class="panel glass">
+    <form class="row search-row" id="search-form" role="search" autocomplete="off">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input
+          id="search-input"
+          type="search"
+          placeholder="搜索歌曲（如：夜に駆ける YOASOBI）"
+          enterkeyhint="search"
+          autocomplete="off"
+          autocapitalize="off"
+          autocorrect="off"
+          spellcheck="false"
+        />
+      </div>
+      <button id="btn-search" class="primary" type="submit">搜索歌词</button>
+    </form>
+    <div id="search-results" class="search-results" hidden></div>
+    <div id="assist-actions" class="assist-actions glass" hidden>
+      <div class="assist-actions-head">
+        <div class="assist-actions-title">补充来源</div>
+        <div id="assist-actions-meta" class="assist-actions-meta">选择歌词后，将自动搜索 Kanogoma。</div>
+      </div>
+      <div class="assist-actions-buttons">
+        <button id="btn-apply-kanogoma" class="assist-btn" type="button" disabled>Kanogoma 待命</button>
+      </div>
+      <div class="jina-key-row">
+        <input id="jina-key-input" type="password" placeholder="Jina API Key（可选，用于修复 Kanogoma 载入）" autocomplete="off" spellcheck="false" />
+        <button id="btn-save-jina-key" class="jina-key-save" type="button">保存</button>
+      </div>
+    </div>
+
+    <div class="section-label">音频来源</div>
+    <div class="source-tabs" role="tablist">
+      <button class="tab active" data-tab="timer" role="tab">⏱ 计时</button>
+      <button class="tab" data-tab="local" role="tab">📁 本地</button>
+    </div>
+
+    <div class="tab-pane active" data-pane="timer">
+      <p class="hint-sm" style="margin-bottom:8px">用于无法读取播放进度的场景（如外部播放器、唱 K）。在歌曲第 0 秒按 ▶ 开始即可。</p>
+      <div class="row">
+        <button id="btn-timer-start" class="primary">▶ 开始 / 暂停</button>
+        <button id="btn-timer-reset">⟲ 归零</button>
+        <button id="btn-timer-restart">⟳ 从头开始</button>
+        <button id="btn-timer-back">« -0.5s</button>
+        <button id="btn-timer-fwd">+0.5s »</button>
+      </div>
+    </div>
+
+    <div class="tab-pane" data-pane="local">
+      <div class="sub-tabs" role="tablist">
+        <button class="sub-tab active" data-subtab="audio" role="tab">🎵 音频</button>
+        <button class="sub-tab" data-subtab="lrc" role="tab">📝 LRC 歌词</button>
+      </div>
+
+      <div class="sub-pane active" data-subpane="audio">
+        <label class="file-label block">
+          <span class="file-cta">选择音频文件</span>
+          <span id="audio-file-name" class="file-name">未选择文件（mp3 / m4a / flac / wav…）</span>
+          <input id="audio-file" type="file" accept="audio/*" hidden />
+        </label>
+      </div>
+
+      <div class="sub-pane" data-subpane="lrc">
+        <label class="file-label block">
+          <span class="file-cta">上传 LRC 文件</span>
+          <span id="lrc-file-name" class="file-name">未选择 .lrc 文件</span>
+          <input id="lrc-file" type="file" accept=".lrc,.txt" hidden />
+        </label>
+        <textarea id="lrc-text" rows="5" placeholder="或在此粘贴 LRC 歌词文本（含 [mm:ss.xx] 时间标签）"></textarea>
+        <div class="row">
+          <button id="btn-load-lrc" class="primary">加载歌词</button>
+          <button id="btn-clear">清空</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">显示设置</div>
+    <div class="row toggles">
+      <label class="chip"><input type="checkbox" id="show-furigana" checked /><span>假名</span></label>
+      <label class="chip"><input type="checkbox" id="show-romaji" checked /><span>罗马音</span></label>
+      <label class="chip"><input type="checkbox" id="show-zh" /><span>中文</span></label>
+      <label class="chip"><input type="checkbox" id="auto-translate" /><span>自动翻译</span></label>
+      <label class="chip markup-mode-chip" title="开启后可拖选罗马音添加标记">
+        <input type="checkbox" id="enable-romaji-markup" /><span>标记罗马音</span>
+      </label>
+    </div>
+
+    <div id="status" class="status"></div>
+  </section>
+
+  <section id="study-view" class="study-view" hidden>
+    <div class="study-panel glass">
+      <div class="study-head">
+        <div>
+          <div class="study-title">日语学习</div>
+          <div class="study-subtitle">输入日语句子，生成假名与罗马音</div>
+        </div>
+        <button id="btn-study-speak-all" class="primary" type="button">朗读全部</button>
+      </div>
+      <textarea id="study-input" rows="5" placeholder="例：今日はいい天気ですね。&#10;一緒に日本語を練習しましょう。"></textarea>
+      <label class="study-voice-row">
+        <span>朗读音色</span>
+        <select id="study-voice-select" class="study-voice-select">
+          <option value="cn-default">中国区优先（百度/有道，失败后自动兜底）</option>
+          <option value="voicevox-13">低沉男声（VOICEVOX 青山龍星）</option>
+          <option value="voicevox-11">男声（VOICEVOX 玄野武宏）</option>
+          <option value="voicevox-8">清亮女声（VOICEVOX 春日部つむぎ）</option>
+          <option value="voicevox-2">女声（VOICEVOX 四国めたん）</option>
+          <option value="voicevox-3">可爱声线（VOICEVOX ずんだもん）</option>
+          <option value="browser-ja">系统日语语音（ja-JP）</option>
+        </select>
+      </label>
+      <div class="row study-actions">
+        <button id="btn-study-convert" class="primary" type="button">转换</button>
+        <button id="btn-study-clear" type="button">清空</button>
+      </div>
+      <div id="study-status" class="status"></div>
+    </div>
+    <div id="study-results" class="study-results">
+      <div class="hint-card">
+        <div class="hint-emoji">📖</div>
+        <p><strong>日语学习模式</strong></p>
+        <p>输入句子后点击转换，会按阅读模式样式显示假名与罗马音。</p>
+        <p class="hint-sub">朗读可选择不同音色，默认优先尝试中国区可访问的免费语音接口。</p>
+      </div>
+    </div>
+  </section>
+
+  <main id="lyrics-view" class="lyrics-view" tabindex="0">
+    <div class="hint-card">
+      <div class="hint-emoji">🎵</div>
+      <p><strong>欢迎！</strong></p>
+      <p>顶部搜索歌词 · 选择音频来源（本地文件 / 计时）· 点播放即可跟唱</p>
+      <p class="hint-sub">右上角 🎤 切换 <b>跟唱模式</b>（高亮当前句）与 <b>阅读模式</b>（清晰平铺全文）。</p>
+    </div>
+  </main>
+
+  <aside id="romaji-annotation-popover" class="annotation-popover glass" role="dialog"
+    aria-label="添加罗马音标记" hidden>
+    <div class="annotation-head">
+      <div>
+        <div class="popover-title">添加标记</div>
+        <div id="annotation-selection" class="annotation-selection"></div>
+      </div>
+      <button id="btn-close-annotation" class="icon-btn popover-close" type="button" aria-label="关闭标记工具"
+        title="关闭">×</button>
+    </div>
+    <div class="tone-types" role="radiogroup" aria-label="中文声调">
+      <button class="annotation-type tone-type" type="button" data-annotation-type="tone1" aria-pressed="false">
+        <span class="tone-number">1</span><span>一声</span><span class="tone-glyph">ˉ</span>
+      </button>
+      <button class="annotation-type tone-type" type="button" data-annotation-type="tone2" aria-pressed="false">
+        <span class="tone-number">2</span><span>二声</span><span class="tone-glyph">ˊ</span>
+      </button>
+      <button class="annotation-type tone-type" type="button" data-annotation-type="tone3" aria-pressed="false">
+        <span class="tone-number">3</span><span>三声</span><span class="tone-glyph">ˇ</span>
+      </button>
+      <button class="annotation-type tone-type" type="button" data-annotation-type="tone4" aria-pressed="false">
+        <span class="tone-number">4</span><span>四声</span><span class="tone-glyph">ˋ</span>
+      </button>
+    </div>
+    <div class="annotation-types" role="radiogroup" aria-label="其他标记">
+      <button class="annotation-type active" type="button" data-annotation-type="phrase" aria-pressed="true">
+        <span class="annotation-sample sample-phrase" aria-hidden="true">ab</span><span>连读</span>
+      </button>
+      <button class="annotation-type" type="button" data-annotation-type="break" aria-pressed="false">
+        <span class="annotation-sample sample-break" aria-hidden="true">a/b</span><span>中断</span>
+      </button>
+      <button class="annotation-type" type="button" data-annotation-type="note" aria-pressed="false">
+        <span class="annotation-sample sample-note" aria-hidden="true">ab</span><span>备注</span>
+      </button>
+    </div>
+    <input id="annotation-note" type="text" maxlength="18" placeholder="备注文字（选择“备注”时填写）" />
+    <div class="row annotation-actions">
+      <button id="btn-apply-annotation" class="primary" type="button">应用</button>
+      <button id="btn-remove-annotation" type="button">清除所选标记</button>
+    </div>
+    <div class="row annotation-actions annotation-actions-wide">
+      <button id="btn-clear-all-annotations" class="btn-danger" type="button">清除本曲所有标记</button>
+    </div>
+  </aside>
+
+  <div id="timer-hud" class="timer-hud" hidden>
+    <span class="hud-dot"></span>
+    <span id="timer-display">00:00.0</span>
+    <button id="hud-toggle" class="hud-btn" title="开始/暂停">▶</button>
+    <button id="hud-restart" class="hud-btn" title="从头开始">⟳</button>
+    <button id="hud-back" class="hud-btn" title="-0.5s">«</button>
+    <button id="hud-fwd" class="hud-btn" title="+0.5s">»</button>
+  </div>
+
+  <footer class="player-bar glass" id="player-bar">
+    <audio id="audio" preload="metadata" controls playsinline></audio>
+  </footer>
+
+  <!-- Libraries (CDN) -->
+  <script src="https://unpkg.com/kuromoji@0.1.2/build/kuromoji.js"></script>
+  <script src="https://unpkg.com/kuroshiro@1.2.0/dist/kuroshiro.min.js"></script>
+  <script src="https://unpkg.com/kuroshiro-analyzer-kuromoji@1.1.0/dist/kuroshiro-analyzer-kuromoji.min.js"></script>
+  <script src="app.js?v=20261102"></script>
+</body>
+
+</html>
