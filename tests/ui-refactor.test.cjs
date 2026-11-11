@@ -35,3 +35,15 @@ test('uses close-sized default romaji and accessible local-audio nudges', () => 
   assert.match(app, /player\.nudgeAudio\(-0\.5\)/);
   assert.match(app, /player\.nudgeAudio\(\+0\.5\)/);
 });
+
+test('applies the responsive Figma-derived system to every interactive surface', () => {
+  for (const selector of [
+    '.search-results', '.result-item', '.assist-actions', '.overrides-popover',
+    '.annotation-popover', '.lrc-line.active', '.song-practice', '.study-panel',
+    '.player-bar', '.timer-hud',
+  ]) assert.match(css, new RegExp(selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  assert.match(css, /Product-wide Figma-derived interface system/);
+  assert.match(css, /@media \(min-width: 900px\)/);
+  assert.match(css, /@media \(max-width: 480px\)/);
+  assert.match(css, /body\.no-player \.player-bar \{ transform: translate\(-50%, 150%\);/);
+});

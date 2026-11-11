@@ -186,7 +186,7 @@ $('#btn-header-utilities')?.addEventListener('click', (event) => {
   event.stopPropagation();
   setHeaderUtilitiesOpen(!document.body.classList.contains('header-utilities-open'));
 });
-headerUtilities?.addEventListener('click', () => setHeaderUtilitiesOpen(false));
+headerUtilities?.addEventListener('click', () => setHeaderUtilitiesOpen(false), true);
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') setHeaderUtilitiesOpen(false);
 });
