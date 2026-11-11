@@ -351,6 +351,59 @@ function applyToggleClasses() {
   $('#' + id).addEventListener('change', applyToggleClasses);
 });
 
+/* ---------------- Lyric font sizes ---------------- */
+const FONT_SIZE_KEY = 'jplrc-font-sizes';
+const FONT_SIZE_LABELS = { furigana: '振假名', jp: '日语歌词', romaji: '罗马音', zh: '中文翻译' };
+const fontSizes = Object.fromEntries(Object.keys(FONT_SIZE_LABELS).map(key => [key, 100]));
+try {
+  const saved = JSON.parse(localStorage.getItem(FONT_SIZE_KEY) || '{}');
+  for (const key of Object.keys(fontSizes)) {
+    if (Number.isInteger(saved[key]) && saved[key] >= 50 && saved[key] <= 200 && saved[key] % 10 === 0) {
+      fontSizes[key] = saved[key];
+    }
+  }
+} catch (error) {
+  console.warn('无法读取字体大小设置：', error);
+}
+function applyFontSizes() {
+  for (const [key, value] of Object.entries(fontSizes)) {
+    document.documentElement.style.setProperty(`--font-${key}`, value / 100);
+    document.querySelectorAll(`[data-font-size="${key}"]`).forEach(input => {
+      input.value = String(value);
+      input.nextElementSibling.value = `${value}%`;
+      input.setAttribute('aria-valuetext', `${value}%`);
+    });
+  }
+}
+function saveFontSizes() {
+  try {
+    localStorage.setItem(FONT_SIZE_KEY, JSON.stringify(fontSizes));
+  } catch (error) {
+    console.warn('无法保存字体大小设置：', error);
+    setStatus('字体大小已应用，但浏览器无法保存设置。', true);
+    studyStatus.textContent = '字体大小已应用，但浏览器无法保存设置。';
+  }
+}
+document.querySelectorAll('[data-font-settings]').forEach(container => {
+  container.innerHTML = `<button type="button" data-font-reset>恢复默认</button>` +
+    Object.entries(FONT_SIZE_LABELS).map(([key, label]) =>
+      `<label><span>${label}</span><input type="range" min="50" max="200" step="10" value="100" data-font-size="${key}" aria-label="${label}字体大小"><output>100%</output></label>`
+    ).join('');
+  container.addEventListener('input', event => {
+    const key = event.target.dataset.fontSize;
+    if (!Object.prototype.hasOwnProperty.call(fontSizes, key)) return;
+    fontSizes[key] = Number(event.target.value);
+    applyFontSizes();
+    saveFontSizes();
+  });
+  container.querySelector('[data-font-reset]').addEventListener('click', () => {
+    for (const key of Object.keys(fontSizes)) fontSizes[key] = 100;
+    applyFontSizes();
+    saveFontSizes();
+  });
+});
+applyFontSizes();
+
 /* ---------------- Romaji annotations ---------------- */
 const ROMAJI_ANNOTATIONS_KEY = 'jplrc-romaji-annotations';
 const romajiMarkupToggle = $('#enable-romaji-markup');

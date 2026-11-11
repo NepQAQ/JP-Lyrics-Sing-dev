@@ -7,6 +7,7 @@
 - 歌词搜索：通过 LRCLIB 搜索同步歌词，支持纯文本歌词自动生成简单时间轴。
 - 逐字时间轴：自动从 PetitLyrics 获取 Type 3 逐字同步数据，实现 KTV 式逐字渐变高亮。
 - 跟唱 / 阅读双模式：跟唱模式高亮当前句并自动滚动；阅读模式平铺全文，适合查读，并支持逐句朗读。
+- 字体大小：分别调整振假名、日语、罗马音和中文的显示大小；设置同时应用于跟唱、阅读和学习模式，保存在当前浏览器，可一键恢复默认。
 - 阅读模式歌曲练习：可选显示本地原歌曲逐句播放、单句循环、倍速与整体时间偏移，不替代原有 TTS 朗读。
 - 假名与罗马音：使用 kuroshiro + kuromoji 为日语生成 furigana 和 Hepburn 罗马音。
 - 罗马音标记：拖选罗马音添加中文一至四声、连读线或文字备注，也可在字母间插入中断 `/`；标记保存在当前浏览器。
@@ -145,6 +146,7 @@ npx serve .
 6. 使用「跟唱 / 阅读」按钮切换显示方式。
 7. 在阅读模式中点击每句右侧的朗读按钮，可单独朗读该句歌词。
 8. 使用显示设置切换假名、罗马音、中文和自动翻译。
+9. 展开「字体大小」，分别调整四种文字为默认大小的 50%–200%，或点击「恢复默认」。学习模式也有同一组设置，两个位置保持同步；恢复默认不会改变显示开关或罗马音标记。
 
 ## 阅读模式：原歌曲逐句练习
 
@@ -165,7 +167,7 @@ npx serve .
 
 NCM 算法参考 [ncmdump-js](https://github.com/ant-cave/ncmdump-js/tree/aa127b694a8cf151d2cc03bf89a439f4c6298dc1)，AES 实现使用 [aes-js 3.1.2](https://github.com/ricmoo/aes-js/tree/v3.1.2)，均为 MIT 许可，完整版权和许可文本见 `public/lib/NCM-LICENSES.txt`。
 
-开发回归验证无需安装依赖：在仓库根目录执行 `node --test tests\audio-file.test.cjs tests\ncm-worker.test.cjs tests\song-practice.test.cjs`（Node.js 18+）。
+开发回归验证无需安装依赖：在仓库根目录执行 `node --test tests\audio-file.test.cjs tests\ncm-worker.test.cjs tests\song-practice.test.cjs tests\font-settings.test.cjs`（Node.js 18+）。
 
 ## 罗马音标记
 

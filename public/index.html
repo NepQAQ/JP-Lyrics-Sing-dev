@@ -11,7 +11,7 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&family=Noto+Sans+SC:wght@400;500&family=Zen+Maru+Gothic:wght@500;700&display=swap"
     rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=20261111a" />
+  <link rel="stylesheet" href="styles.css?v=20261111c" />
 </head>
 
 <body>
@@ -213,6 +213,11 @@
       </label>
     </div>
 
+    <details class="font-settings">
+      <summary>字体大小</summary>
+      <div class="font-settings-controls" data-font-settings></div>
+    </details>
+
     <div id="status" class="status"></div>
   </section>
 
@@ -242,6 +247,10 @@
         <button id="btn-study-convert" class="primary" type="button">转换</button>
         <button id="btn-study-clear" type="button">清空</button>
       </div>
+      <details class="font-settings">
+        <summary>字体大小</summary>
+        <div class="font-settings-controls" data-font-settings></div>
+      </details>
       <div id="study-status" class="status"></div>
     </div>
     <div id="study-results" class="study-results">
@@ -348,7 +357,7 @@
   <script src="lib/kuromoji.js"></script>
   <script src="lib/kuroshiro.min.js"></script>
   <script src="lib/kuroshiro-analyzer-kuromoji.min.js"></script>
-  <script src="app.js?v=20261111b"></script>
+  <script src="app.js?v=20261111c"></script>
 </body>
 
 </html>

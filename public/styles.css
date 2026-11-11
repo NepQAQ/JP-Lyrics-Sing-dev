@@ -947,6 +947,14 @@ body.mode-read:not(.app-study) .song-practice-toggle {
   outline-offset: 3px;
 }
 
+.font-settings { margin-top: 12px; }
+.font-settings summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-weight: 600; }
+.font-settings-controls { display: grid; gap: 6px; max-width: 440px; }
+.font-settings-controls label { display: grid; grid-template-columns: 80px minmax(0, 1fr) 52px; align-items: center; gap: 8px; min-height: 44px; font-size: 13px; }
+.font-settings-controls input { width: 100%; accent-color: var(--accent); }
+.font-settings-controls output { text-align: right; font-variant-numeric: tabular-nums; }
+.font-settings-controls button { justify-self: start; min-height: 44px; }
+
 .lrc-line {
   position: relative;
   padding: 16px 18px;
@@ -1064,8 +1072,9 @@ body.mode-read .lyrics-view {
 }
 
 .jp {
+  --jp-base-size: 24px;
   font-family: "Zen Maru Gothic", "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif;
-  font-size: 24px; line-height: 2.0; font-weight: 500;
+  font-size: calc(var(--jp-base-size) * var(--font-jp, 1)); line-height: 2.0; font-weight: 500;
   color: var(--text-strong);
   max-width: 100%;
   margin: 0 auto;
@@ -1079,7 +1088,7 @@ body.mode-read .lyrics-view {
   white-space: normal;
 }
 .jp ruby rt {
-  font-size: 0.5em;
+  font-size: calc(var(--jp-base-size) * 0.5 * var(--font-furigana, 1));
   color: var(--accent);
   font-weight: 400;
   letter-spacing: 0.5px;
@@ -1087,7 +1096,7 @@ body.mode-read .lyrics-view {
 }
 .romaji {
   font-family: "Inter", sans-serif;
-  font-size: 16px; color: var(--accent);
+  font-size: calc(16px * var(--font-romaji, 1)); color: var(--accent);
   margin-top: 8px;
   letter-spacing: 0.6px;
   font-style: italic;
@@ -1213,7 +1222,7 @@ body.mode-read .lyrics-view {
 .romaji.has-romaji-note { margin-top: 26px; }
 .zh {
   font-family: "Noto Sans SC", sans-serif;
-  font-size: 14px; color: var(--muted); margin-top: 4px;
+  font-size: calc(14px * var(--font-zh, 1)); color: var(--muted); margin-top: 4px;
   max-width: 100%;
   margin-left: auto;
   margin-right: auto;
@@ -1312,9 +1321,9 @@ body.no-player .lyrics-view { padding-bottom: 32px; }
 /* ===== Responsive ===== */
 @media (min-width: 720px) {
   .panel { margin: 16px auto; max-width: 920px; }
-  .jp { font-size: 30px; line-height: 2.1; }
-  .romaji { font-size: 18px; }
-  .zh { font-size: 16px; }
+  .jp { --jp-base-size: 30px; line-height: 2.1; }
+  .romaji { font-size: calc(18px * var(--font-romaji, 1)); }
+  .zh { font-size: calc(16px * var(--font-zh, 1)); }
   .lyrics-view { padding-bottom: 240px; }
   .yt-wrap { max-width: 560px; }
 }
@@ -1337,15 +1346,15 @@ body.no-player .lyrics-view { padding-bottom: 32px; }
     max-width: calc(100vw - 16px);
   }
   .jp {
-    font-size: clamp(20px, 5.8vw, 21px);
+    --jp-base-size: clamp(20px, 5.8vw, 21px);
     line-height: 1.85;
     word-break: break-word;
   }
   .romaji {
-    font-size: clamp(14px, 4vw, 16px);
+    font-size: calc(clamp(14px, 4vw, 16px) * var(--font-romaji, 1));
     letter-spacing: 0.35px;
   }
-  .zh { font-size: clamp(13px, 3.8vw, 14px); }
+  .zh { font-size: calc(clamp(13px, 3.8vw, 14px) * var(--font-zh, 1)); }
   .lyrics-view {
     padding-left: 12px;
     padding-right: 12px;
