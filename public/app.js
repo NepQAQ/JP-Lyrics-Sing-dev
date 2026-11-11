@@ -125,7 +125,8 @@ function applyAppMode(mode) {
   if (studyView) studyView.hidden = next !== 'study';
   const btn = $('#btn-app-mode');
   if (btn) {
-    btn.querySelector('.brand-mode-text').textContent = next === 'study' ? '日语学习' : '日语跟唱';
+    btn.querySelector('.brand-mode-text').textContent = 'JP';
+    btn.querySelector('.brand-mode-state').textContent = next === 'study' ? '学习' : '歌词';
     btn.title = next === 'study' ? '当前：日语学习模式 · 点击切回歌词' : '当前：歌词模式 · 点击切换';
     btn.setAttribute('aria-label', next === 'study' ? '切回歌词模式' : '切换歌词与日语学习模式');
   }
@@ -139,6 +140,7 @@ function applyAppMode(mode) {
     if (player.mode === 'timer' && player.timerRunning) player.timerToggle();
   }
   stopStudySpeech();
+  updateAudioNudgeControls();
   requestAnimationFrame(syncPanelToggleButton);
   localStorage.setItem(APP_MODE_KEY, next);
   if (songPractice.initialized) updateSongPracticeUI();
@@ -170,6 +172,30 @@ document.addEventListener('click', (ev) => {
   setBrandModeMenuOpen(false);
 });
 
+/* ---------------- Compact header utilities ---------------- */
+const headerUtilities = $('#header-utilities');
+function setHeaderUtilitiesOpen(open) {
+  document.body.classList.toggle('header-utilities-open', open);
+  const toggle = $('#btn-header-utilities');
+  if (toggle) {
+    toggle.setAttribute('aria-expanded', String(open));
+    toggle.setAttribute('aria-label', open ? '关闭更多工具' : '打开更多工具');
+  }
+}
+$('#btn-header-utilities')?.addEventListener('click', (event) => {
+  event.stopPropagation();
+  setHeaderUtilitiesOpen(!document.body.classList.contains('header-utilities-open'));
+});
+headerUtilities?.addEventListener('click', () => setHeaderUtilitiesOpen(false));
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') setHeaderUtilitiesOpen(false);
+});
+document.addEventListener('click', (event) => {
+  if (!document.body.classList.contains('header-utilities-open')) return;
+  if ($('#btn-header-utilities')?.contains(event.target) || headerUtilities?.contains(event.target)) return;
+  setHeaderUtilitiesOpen(false);
+});
+
 /* ---------------- Display Mode (sing-along vs read) ---------------- */
 const MODE_KEY = 'jplrc-mode';
 function applyMode(mode) {
@@ -199,8 +225,15 @@ $('#btn-mode')?.addEventListener('click', () => {
 /* Show/hide player bar based on whether any audio source is active. */
 function setPlayerVisible(visible) {
   document.body.classList.toggle('no-player', !visible);
+  updateAudioNudgeControls();
 }
 setPlayerVisible(false); // default: no source
+
+function updateAudioNudgeControls() {
+  const enabled = !!audio.src && !document.body.classList.contains('app-study');
+  $('#btn-player-back')?.toggleAttribute('disabled', !enabled);
+  $('#btn-player-fwd')?.toggleAttribute('disabled', !enabled);
+}
 
 /* ---------------- UI helpers ---------------- */
 function setStatus(msg, isError = false, action = null) {
@@ -1816,6 +1849,13 @@ const player = {
       audio.play().catch(() => {});
     }
   },
+  nudgeAudio(delta) {
+    if (this.mode !== 'audio' || !audio.src || !Number.isFinite(delta)) return false;
+    stopSongPractice();
+    const duration = Number.isFinite(audio.duration) ? audio.duration : Infinity;
+    audio.currentTime = Math.max(0, Math.min(duration, (audio.currentTime || 0) + delta));
+    return true;
+  },
   // timer controls
   timerToggle() {
     if (this.mode !== 'timer') return;
@@ -3349,6 +3389,7 @@ function switchToAudioMode() {
   if (player.yt) { try { player.yt.stopVideo(); } catch {} }
   // Only show player bar if an audio file is actually loaded
   setPlayerVisible(!!audio.src);
+  updateAudioNudgeControls();
   updateSongPracticeUI();
 }
 
@@ -3397,6 +3438,7 @@ function switchToTimerMode() {
   player.timerRunning = false;
   showTimerHud();
   setPlayerVisible(false);  // timer mode doesn't need the audio bar
+  updateAudioNudgeControls();
   startPolling();
   setStatus('计时模式：在外部播放器开始的同时点 ▶ 启动。');
   updateSongPracticeUI();
@@ -3420,6 +3462,8 @@ hudToggle.addEventListener('click', () => player.timerToggle());
 $('#hud-restart').addEventListener('click', () => player.timerRestart());
 $('#hud-back').addEventListener('click', () => player.timerNudge(-0.5));
 $('#hud-fwd').addEventListener('click', () => player.timerNudge(+0.5));
+$('#btn-player-back')?.addEventListener('click', () => player.nudgeAudio(-0.5));
+$('#btn-player-fwd')?.addEventListener('click', () => player.nudgeAudio(+0.5));
 $('#btn-timer-start').addEventListener('click', () => {
   if (player.mode !== 'timer') switchToTimerMode();
   player.timerToggle();

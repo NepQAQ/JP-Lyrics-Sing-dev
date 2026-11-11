@@ -11,7 +11,7 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&family=Noto+Sans+SC:wght@400;500&family=Zen+Maru+Gothic:wght@500;700&display=swap"
     rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=20261111c" />
+  <link rel="stylesheet" href="styles.css?v=20261111d" />
 </head>
 
 <body>
@@ -27,7 +27,8 @@
       <div class="brand-mode" id="brand-mode">
         <button id="btn-app-mode" class="brand-mode-btn" type="button" aria-haspopup="listbox"
           aria-expanded="false" aria-label="切换歌词与日语学习模式" title="切换歌词与日语学习模式">
-          <span class="brand-mode-text">日语跟唱</span>
+          <span class="brand-mode-text">JP</span>
+          <span class="brand-mode-state">歌词</span>
           <span class="brand-mode-arrow" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
@@ -35,13 +36,30 @@
             </svg>
           </span>
         </button>
-        <span class="brand-sub">JP Lyrics Sing</span>
       </div>
     </div>
+    <form class="header-search" id="search-form" role="search" autocomplete="off">
+      <label class="sr-only" for="search-input">搜索歌曲</label>
+      <div class="search-box">
+        <span class="search-icon" aria-hidden="true">🔍</span>
+        <input
+          id="search-input"
+          type="search"
+          placeholder="搜索歌曲或歌手"
+          enterkeyhint="search"
+          autocomplete="off"
+          autocapitalize="off"
+          autocorrect="off"
+          spellcheck="false"
+        />
+      </div>
+      <button id="btn-search" class="primary" type="submit"><span class="search-label">搜索</span><span class="search-symbol" aria-hidden="true">⌕</span></button>
+    </form>
     <div class="header-actions">
       <button id="btn-mode" class="mode-btn" aria-label="切换跳唱/阅读模式" title="切换跳唱/阅读模式">
         <span class="mode-icon">🎤</span><span class="mode-text">跟唱</span>
       </button>
+      <div id="header-utilities" class="header-utilities">
       <button id="btn-search-history" class="icon-btn" aria-label="搜索历史" title="搜索历史" aria-haspopup="dialog"
         aria-expanded="false">
         <span class="icon-btn-glyph" aria-hidden="true">
@@ -77,6 +95,9 @@
           </svg>
         </span>
       </button>
+      </div>
+      <button id="btn-header-utilities" class="icon-btn header-utilities-toggle" type="button"
+        aria-label="打开更多工具" aria-haspopup="menu" aria-expanded="false" title="更多工具">•••</button>
     </div>
   </header>
 
@@ -125,22 +146,6 @@
   </aside>
 
   <section id="panel" class="panel glass">
-    <form class="row search-row" id="search-form" role="search" autocomplete="off">
-      <div class="search-box">
-        <span class="search-icon">🔍</span>
-        <input
-          id="search-input"
-          type="search"
-          placeholder="搜索歌曲（如：夜に駆ける YOASOBI）"
-          enterkeyhint="search"
-          autocomplete="off"
-          autocapitalize="off"
-          autocorrect="off"
-          spellcheck="false"
-        />
-      </div>
-      <button id="btn-search" class="primary" type="submit">搜索歌词</button>
-    </form>
     <div id="search-results" class="search-results" hidden></div>
     <div id="assist-actions" class="assist-actions glass" hidden>
       <div class="assist-actions-head">
@@ -350,14 +355,18 @@
   </div>
 
   <footer class="player-bar glass" id="player-bar">
-    <audio id="audio" preload="metadata" controls playsinline></audio>
+    <div class="audio-controls" aria-label="本地音频控制">
+      <button id="btn-player-back" class="player-nudge" type="button" disabled aria-label="后退 0.5 秒" title="后退 0.5 秒">−0.5s</button>
+      <audio id="audio" preload="metadata" controls playsinline></audio>
+      <button id="btn-player-fwd" class="player-nudge" type="button" disabled aria-label="前进 0.5 秒" title="前进 0.5 秒">+0.5s</button>
+    </div>
   </footer>
 
   <!-- Libraries (local, 避免 unpkg 等外部 CDN 在国内无法访问) -->
   <script src="lib/kuromoji.js"></script>
   <script src="lib/kuroshiro.min.js"></script>
   <script src="lib/kuroshiro-analyzer-kuromoji.min.js"></script>
-  <script src="app.js?v=20261111c"></script>
+  <script src="app.js?v=20261111d"></script>
 </body>
 
 </html>
