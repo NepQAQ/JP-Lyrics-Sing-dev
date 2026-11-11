@@ -112,6 +112,20 @@
     </button>
   </aside>
 
+  <section class="lyric-controls" aria-label="歌词控制">
+    <button id="btn-source-panel" class="source-summary" type="button" aria-controls="panel" aria-expanded="false">
+      <span class="source-summary-icon" aria-hidden="true">♫</span>
+      <span class="source-summary-copy">
+        <span id="source-summary-title">计时模式</span>
+        <span id="source-summary-detail">点击设置音源</span>
+      </span>
+      <span class="source-summary-arrow" aria-hidden="true">⌄</span>
+    </button>
+    <div id="view-switch-slot" class="view-switch" role="group" aria-label="歌词显示模式"></div>
+    <button id="btn-display-settings" class="display-settings-btn" type="button" aria-haspopup="dialog"
+      aria-controls="display-drawer">显示设置</button>
+  </section>
+
   <aside id="search-history-popover" class="overrides-popover history-popover glass" role="dialog"
     aria-labelledby="search-history-title" hidden>
     <div class="popover-head">
@@ -145,7 +159,13 @@
     </div>
   </aside>
 
-  <section id="panel" class="panel glass">
+  <section id="panel" class="panel source-panel glass hidden" aria-label="音频与歌词来源">
+    <div class="source-panel-head">
+      <div>
+        <div class="source-panel-title">音频来源</div>
+        <div class="source-panel-subtitle">选择播放或计时方式</div>
+      </div>
+    </div>
     <div id="search-results" class="search-results" hidden></div>
     <div id="assist-actions" class="assist-actions glass" hidden>
       <div class="assist-actions-head">
@@ -162,6 +182,12 @@
       <button class="tab active" data-tab="timer" role="tab">⏱ 计时</button>
       <button class="tab" data-tab="local" role="tab">📁 本地</button>
     </div>
+
+    <div class="source-upload-actions">
+      <label class="source-upload-btn" for="audio-file">上传音频</label>
+      <label class="source-upload-btn" for="lrc-file">上传 LRC</label>
+    </div>
+    <p class="source-privacy">支持 ncm、mp3、m4a、flac、wav 与 LRC；仅在本机处理，不上传文件。</p>
 
     <div class="tab-pane active" data-pane="timer">
       <p class="hint-sm" style="margin-bottom:8px">用于无法读取播放进度的场景（如外部播放器、唱 K）。在歌曲第 0 秒按 ▶ 开始即可。</p>
@@ -225,6 +251,64 @@
 
     <div id="status" class="status"></div>
   </section>
+
+  <aside id="display-drawer" class="settings-drawer" role="dialog" aria-modal="true"
+    aria-labelledby="display-drawer-title" hidden>
+    <div class="drawer-header">
+      <button id="btn-close-display-settings" class="drawer-back" type="button" aria-label="返回歌词">←</button>
+      <div>
+        <h2 id="display-drawer-title">显示设置</h2>
+        <p>调整歌词阅读与跟唱方式</p>
+      </div>
+    </div>
+    <div id="display-drawer-content" class="drawer-scroll">
+      <section class="settings-card">
+        <h3>文字显示</h3>
+        <div id="display-toggle-slot"></div>
+      </section>
+      <section class="settings-card">
+        <h3>跟唱体验</h3>
+        <div id="display-practice-slot"></div>
+        <label class="settings-row"><span><b>随播放滚动</b><small>自动聚焦正在播放的歌词</small></span><input type="checkbox" id="auto-scroll-lyrics" checked /></label>
+      </section>
+      <section class="settings-card">
+        <h3>更多</h3>
+        <button id="btn-font-settings" class="settings-link" type="button">字体大小 <span>›</span></button>
+        <div id="display-markup-slot"></div>
+        <div id="display-tools-slot" class="drawer-tool-actions"></div>
+      </section>
+      <section class="settings-preview" aria-label="歌词预览">
+        <span>实时预览</span>
+        <div class="preview-furigana">きみ の なまえ を よんだ</div>
+        <div class="preview-jp">君の名前を呼んだ</div>
+        <div class="preview-romaji">Kimi no namae o yonda</div>
+        <div class="preview-zh">我呼喊着你的名字</div>
+      </section>
+    </div>
+    <div class="drawer-footer"><button id="btn-done-display-settings" class="primary" type="button">完成</button></div>
+  </aside>
+
+  <aside id="font-drawer" class="settings-drawer" role="dialog" aria-modal="true"
+    aria-labelledby="font-drawer-title" hidden>
+    <div class="drawer-header">
+      <button id="btn-back-to-display-settings" class="drawer-back" type="button" aria-label="返回显示设置">←</button>
+      <div>
+        <h2 id="font-drawer-title">字体大小</h2>
+        <p>分别调整四种文字，设置保存在本机</p>
+      </div>
+    </div>
+    <div class="drawer-scroll">
+      <section class="settings-preview font-preview" aria-label="字体实时预览">
+        <span>实时预览</span>
+        <div class="preview-furigana">きみ の なまえ を よんだ</div>
+        <div class="preview-jp">君の名前を呼んだ</div>
+        <div class="preview-romaji">Kimi no namae o yonda</div>
+        <div class="preview-zh">我呼喊着你的名字</div>
+      </section>
+      <section id="font-drawer-controls" class="font-drawer-controls"></section>
+    </div>
+    <div class="drawer-footer"><button id="btn-done-font-settings" class="primary" type="button">完成</button></div>
+  </aside>
 
   <section id="study-view" class="study-view" hidden>
     <div class="study-panel glass">

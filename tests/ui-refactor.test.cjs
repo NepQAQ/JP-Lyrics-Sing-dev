@@ -16,13 +16,26 @@ test('keeps one accessible search form beside the JP mode selector', () => {
   assert.match(app, /function setBrandModeMenuOpen\(open\)/);
 });
 
-test('retains every header utility through the compact mobile menu', () => {
+test('uses the lyric-first mobile structure with collapsible sources and settings drawers', () => {
+  assert.match(html, /id="btn-source-panel"/);
+  assert.match(html, /id="panel" class="panel source-panel glass hidden"/);
+  assert.match(html, /id="display-drawer" class="settings-drawer"/);
+  assert.match(html, /id="font-drawer" class="settings-drawer"/);
+  assert.match(html, /id="auto-scroll-lyrics"/);
+  assert.match(app, /function moveLyricsControlsIntoDrawers/);
+  assert.match(app, /function shouldAutoScrollLyrics/);
+  assert.match(app, /setPanelCollapsed\(false\);/);
+  assert.match(css, /\.source-panel\.hidden \{ display: none; \}/);
+  assert.match(css, /\.settings-drawer \{/);
+});
+
+test('keeps theme in the header and moves secondary utilities into display settings', () => {
   for (const id of ['btn-search-history', 'btn-export', 'btn-theme', 'btn-toggle-panel']) {
     assert.match(html, new RegExp(`id="${id}"`));
   }
-  assert.match(html, /id="btn-header-utilities"/);
-  assert.match(css, /body\.header-utilities-open \.header-utilities/);
-  assert.match(app, /function setHeaderUtilitiesOpen\(open\)/);
+  assert.match(app, /\$\(\'\.header-actions\'\)\?\.appendChild\(\$\(\'#btn-theme\'\)\)/);
+  assert.match(app, /const tools = \$\('#display-tools-slot'\)/);
+  assert.match(css, /#btn-header-utilities, #header-utilities \{ display: none !important; \}/);
 });
 
 test('uses close-sized default romaji and accessible local-audio nudges', () => {

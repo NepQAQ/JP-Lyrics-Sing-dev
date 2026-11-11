@@ -322,6 +322,11 @@ function renderAssistActions() {
 
 function setPanelCollapsed(collapsed) {
   $('#panel').classList.toggle('hidden', collapsed);
+  const sourceButton = $('#btn-source-panel');
+  if (sourceButton) {
+    sourceButton.setAttribute('aria-expanded', String(!collapsed));
+    sourceButton.classList.toggle('expanded', !collapsed);
+  }
   const btn = $('#btn-toggle-panel');
   if (!btn) return;
   btn.innerHTML = collapsed
@@ -330,6 +335,54 @@ function setPanelCollapsed(collapsed) {
   btn.setAttribute('aria-label', collapsed ? '展开控制面板' : '收起控制面板');
   btn.title = collapsed ? '展开控制面板' : '收起控制面板';
   syncCollapsedTimerHud();
+}
+
+function updateSourceSummary(title, detail) {
+  $('#source-summary-title').textContent = title;
+  $('#source-summary-detail').textContent = detail;
+}
+
+function moveLyricsControlsIntoDrawers() {
+  $('#view-switch-slot')?.appendChild($('#btn-mode'));
+  $('.header-actions')?.appendChild($('#btn-theme'));
+  const toggleSlot = $('#display-toggle-slot');
+  ['show-furigana', 'show-romaji', 'show-zh', 'auto-translate'].forEach(id => {
+    toggleSlot?.appendChild($('#' + id).closest('label'));
+  });
+  $('#display-practice-slot')?.appendChild($('#enable-song-practice').closest('label'));
+  $('#display-markup-slot')?.appendChild($('#enable-romaji-markup').closest('label'));
+  const legacyFontSettings = $('#panel .font-settings');
+  if (legacyFontSettings) $('#font-drawer-controls').replaceWith(legacyFontSettings);
+  const tools = $('#display-tools-slot');
+  ['btn-search-history', 'btn-export', 'btn-toggle-panel'].forEach(id => tools?.appendChild($('#' + id)));
+}
+
+function setSettingsDrawer(drawer, open) {
+  if (!drawer) return;
+  drawer.hidden = !open;
+  document.body.classList.toggle('settings-drawer-open', open);
+}
+
+function initSettingsDrawers() {
+  const displayDrawer = $('#display-drawer');
+  const fontDrawer = $('#font-drawer');
+  $('#btn-display-settings')?.addEventListener('click', () => setSettingsDrawer(displayDrawer, true));
+  $('#btn-close-display-settings')?.addEventListener('click', () => setSettingsDrawer(displayDrawer, false));
+  $('#btn-done-display-settings')?.addEventListener('click', () => setSettingsDrawer(displayDrawer, false));
+  $('#btn-font-settings')?.addEventListener('click', () => {
+    setSettingsDrawer(displayDrawer, false);
+    setSettingsDrawer(fontDrawer, true);
+  });
+  $('#btn-back-to-display-settings')?.addEventListener('click', () => {
+    setSettingsDrawer(fontDrawer, false);
+    setSettingsDrawer(displayDrawer, true);
+  });
+  $('#btn-done-font-settings')?.addEventListener('click', () => setSettingsDrawer(fontDrawer, false));
+  document.addEventListener('keydown', event => {
+    if (event.key !== 'Escape') return;
+    if (!fontDrawer?.hidden) setSettingsDrawer(fontDrawer, false);
+    else if (!displayDrawer?.hidden) setSettingsDrawer(displayDrawer, false);
+  });
 }
 
 function setStudyPanelCollapsed(collapsed) {
@@ -383,6 +436,19 @@ function applyToggleClasses() {
 ['show-furigana', 'show-romaji', 'show-zh'].forEach(id => {
   $('#' + id).addEventListener('change', applyToggleClasses);
 });
+moveLyricsControlsIntoDrawers();
+initSettingsDrawers();
+const AUTO_SCROLL_KEY = 'jplrc-auto-scroll';
+const autoScrollToggle = $('#auto-scroll-lyrics');
+try {
+  autoScrollToggle.checked = localStorage.getItem(AUTO_SCROLL_KEY) !== '0';
+} catch {}
+autoScrollToggle.addEventListener('change', () => {
+  try { localStorage.setItem(AUTO_SCROLL_KEY, autoScrollToggle.checked ? '1' : '0'); } catch {}
+});
+function shouldAutoScrollLyrics() {
+  return autoScrollToggle.checked;
+}
 
 /* ---------------- Lyric font sizes ---------------- */
 const FONT_SIZE_KEY = 'jplrc-font-sizes';
@@ -391,7 +457,7 @@ const fontSizes = Object.fromEntries(Object.keys(FONT_SIZE_LABELS).map(key => [k
 try {
   const saved = JSON.parse(localStorage.getItem(FONT_SIZE_KEY) || '{}');
   for (const key of Object.keys(fontSizes)) {
-    if (Number.isInteger(saved[key]) && saved[key] >= 50 && saved[key] <= 200 && saved[key] % 10 === 0) {
+    if (Number.isInteger(saved[key]) && saved[key] >= 70 && saved[key] <= 150 && saved[key] % 10 === 0) {
       fontSizes[key] = saved[key];
     }
   }
@@ -420,7 +486,7 @@ function saveFontSizes() {
 document.querySelectorAll('[data-font-settings]').forEach(container => {
   container.innerHTML = `<button type="button" data-font-reset>恢复默认</button>` +
     Object.entries(FONT_SIZE_LABELS).map(([key, label]) =>
-      `<label><span>${label}</span><input type="range" min="50" max="200" step="10" value="100" data-font-size="${key}" aria-label="${label}字体大小"><output>100%</output></label>`
+      `<label><span>${label}</span><input type="range" min="70" max="150" step="10" value="100" data-font-size="${key}" aria-label="${label}字体大小"><output>100%</output></label>`
     ).join('');
   container.addEventListener('input', event => {
     const key = event.target.dataset.fontSize;
@@ -750,6 +816,9 @@ $('#btn-toggle-panel').addEventListener('click', () => {
     setStudyPanelCollapsed(!$('.study-panel')?.classList.contains('hidden'));
     return;
   }
+  setPanelCollapsed(!$('#panel').classList.contains('hidden'));
+});
+$('#btn-source-panel')?.addEventListener('click', () => {
   setPanelCollapsed(!$('#panel').classList.contains('hidden'));
 });
 
@@ -2419,10 +2488,10 @@ function syncHighlight(t) {
     if (idx >= 0) {
       const el = lrcLines[idx].el;
       el.classList.add('active');
-      if (shouldCenterLyrics()) centerActiveLyric(el);
+      if (shouldAutoScrollLyrics() && shouldCenterLyrics()) centerActiveLyric(el);
       updateKaraokeProgress(t);
     }
-  } else if (idx >= 0 && shouldCenterLyrics()) {
+  } else if (idx >= 0 && shouldAutoScrollLyrics() && shouldCenterLyrics()) {
     const now = performance.now();
     if (now - lastAutoCenterAt > 650) centerActiveLyric(lrcLines[idx].el);
   }
@@ -2471,6 +2540,9 @@ function failAudioFile(message) {
     setPlayerVisible(false);
   }
   setStatus(message, true);
+  if (typeof updateSourceSummary === 'function') {
+    updateSourceSummary('本地音频', '加载失败，点击查看音源设置');
+  }
   updateSongPracticeUI();
 }
 
@@ -2482,6 +2554,9 @@ function loadAudioFile(blob, format = '') {
   audio.preload = 'auto';
   audio.load();
   setPlayerVisible(true);
+  if (typeof updateSourceSummary === 'function') {
+    updateSourceSummary('本地音频', $('#audio-file-name').textContent || '正在读取文件');
+  }
   setStatus(songPractice.audioLoading);
   updateSongPracticeUI();
 }
@@ -2996,6 +3071,7 @@ async function doSearch() {
   resetAssistActions();
   setStatus('搜索中...');
   searchResults.hidden = false;
+  setPanelCollapsed(false);
   searchResults.replaceChildren();
 
   // 搜索框下方的源 tab：tab 前的小圆点标记各源状态（绿点 = 已出结果）
@@ -3389,6 +3465,7 @@ function switchToAudioMode() {
   if (player.yt) { try { player.yt.stopVideo(); } catch {} }
   // Only show player bar if an audio file is actually loaded
   setPlayerVisible(!!audio.src);
+  updateSourceSummary('本地音频', $('#audio-file-name').textContent || '已选择本地文件');
   updateAudioNudgeControls();
   updateSongPracticeUI();
 }
@@ -3441,6 +3518,7 @@ function switchToTimerMode() {
   updateAudioNudgeControls();
   startPolling();
   setStatus('计时模式：在外部播放器开始的同时点 ▶ 启动。');
+  updateSourceSummary('计时模式', '外部播放器同步计时');
   updateSongPracticeUI();
 }
 

@@ -86,7 +86,7 @@ test('defaults, independent sizes, cross-panel synchronization and persistence',
 
 test('bad saved values fall back independently and write failures are visible', () => {
   const f = fixture('{"furigana":200,"jp":1000,"romaji":"150","zh":90}', true);
-  assert.deepEqual(f.props, { '--font-furigana': 2, '--font-jp': 1, '--font-romaji': 1, '--font-zh': 0.9 });
+  assert.deepEqual(f.props, { '--font-furigana': 1, '--font-jp': 1, '--font-romaji': 1, '--font-zh': 0.9 });
   change(f.containers[0], 'romaji', 130);
   assert.equal(f.props['--font-romaji'], 1.3);
   assert.match(f.notices[0], /无法保存/);
@@ -98,6 +98,8 @@ test('font settings are present in both modes and preserve existing visibility s
   const html = readFileSync(path.join(root, 'index.html'), 'utf8');
   const css = readFileSync(path.join(root, 'styles.css'), 'utf8');
   assert.equal((html.match(/data-font-settings/g) || []).length, 2);
+  assert.match(source, /min="70" max="150" step="10"/);
+  assert.match(source, /saved\[key\] >= 70 && saved\[key\] <= 150/);
   assert.match(css, /\.lrc-line\.hide-furigana ruby rt/);
   assert.match(css, /\.lrc-line\.hide-romaji \.romaji/);
   assert.match(css, /\.lrc-line\.hide-zh \.zh/);
