@@ -22,7 +22,10 @@ test('uses the lyric-first mobile structure with collapsible sources and setting
   assert.match(html, /id="display-drawer" class="settings-drawer"/);
   assert.match(html, /id="font-drawer" class="settings-drawer"/);
   assert.match(html, /id="auto-scroll-lyrics"/);
+  assert.match(html, /id="display-extra-slot"/);
+  assert.match(html, /id="overrides-popover"/);
   assert.match(app, /function moveLyricsControlsIntoDrawers/);
+  assert.match(app, /function keepFocusInDrawer/);
   assert.match(app, /function shouldAutoScrollLyrics/);
   assert.match(app, /setPanelCollapsed\(false\);/);
   assert.match(css, /\.source-panel\.hidden \{ display: none; \}/);
@@ -56,6 +59,7 @@ test('applies the responsive Figma-derived system to every interactive surface',
     '.player-bar', '.timer-hud',
   ]) assert.match(css, new RegExp(selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   assert.match(css, /Product-wide Figma-derived interface system/);
+  assert.match(css, /Final mobile settings hierarchy/);
   assert.match(css, /@media \(min-width: 900px\)/);
   assert.match(css, /@media \(max-width: 480px\)/);
   assert.match(css, /body\.no-player \.player-bar \{ transform: translate\(-50%, 150%\);/);

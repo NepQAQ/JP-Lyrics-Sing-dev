@@ -358,7 +358,7 @@ function loaderFixture() {
     ['async function loadFromCache(', 'function getCacheEntries('],
     ['function buildLrcFromParsed(', 'let lastSearch ='],
     ['function buildFakeLrcFromPlainText(', '/* ---------------- PetitLyrics'],
-    ['async function loadFromLrclib(', '/* ---------------- YouTube'],
+    ['async function loadFromLrclib(', 'function switchToAudioMode('],
   ]) vm.runInContext(section(start, end), c);
   return f;
 }

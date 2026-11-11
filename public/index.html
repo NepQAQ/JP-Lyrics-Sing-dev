@@ -11,7 +11,7 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&family=Noto+Sans+SC:wght@400;500&family=Zen+Maru+Gothic:wght@500;700&display=swap"
     rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=20261111e" />
+  <link rel="stylesheet" href="styles.css?v=20261111f" />
 </head>
 
 <body>
@@ -159,6 +159,23 @@
     </div>
   </aside>
 
+  <aside id="overrides-popover" class="overrides-popover glass" role="dialog"
+    aria-labelledby="overrides-title" hidden>
+    <div class="popover-head">
+      <div>
+        <div id="overrides-title" class="popover-title">读音修正</div>
+        <div class="popover-subtitle">每行：汉字=假名|romaji</div>
+      </div>
+      <button id="btn-close-overrides" class="icon-btn popover-close" type="button" aria-label="关闭读音修正">×</button>
+    </div>
+    <textarea id="overrides-text" rows="8" spellcheck="false"
+      placeholder="例：&#10;今日=きょう|kyou&#10;二人=ふたり|futari"></textarea>
+    <div class="row">
+      <button id="btn-save-overrides" class="primary" type="button">保存修正</button>
+      <button id="btn-reload-lyrics" type="button">重新生成注音</button>
+    </div>
+  </aside>
+
   <section id="panel" class="panel source-panel glass hidden" aria-label="音频与歌词来源">
     <div class="source-panel-head">
       <div>
@@ -274,6 +291,7 @@
       <section class="settings-card">
         <h3>更多</h3>
         <button id="btn-font-settings" class="settings-link" type="button">字体大小 <span>›</span></button>
+        <div id="display-extra-slot"></div>
         <div id="display-markup-slot"></div>
         <div id="display-tools-slot" class="drawer-tool-actions"></div>
       </section>
@@ -450,7 +468,7 @@
   <script src="lib/kuromoji.js"></script>
   <script src="lib/kuroshiro.min.js"></script>
   <script src="lib/kuroshiro-analyzer-kuromoji.min.js"></script>
-  <script src="app.js?v=20261111e"></script>
+  <script src="app.js?v=20261111f"></script>
 </body>
 
 </html>

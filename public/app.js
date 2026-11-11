@@ -346,21 +346,49 @@ function moveLyricsControlsIntoDrawers() {
   $('#view-switch-slot')?.appendChild($('#btn-mode'));
   $('.header-actions')?.appendChild($('#btn-theme'));
   const toggleSlot = $('#display-toggle-slot');
-  ['show-furigana', 'show-romaji', 'show-zh', 'auto-translate'].forEach(id => {
+  ['show-furigana', 'show-romaji', 'show-zh'].forEach(id => {
     toggleSlot?.appendChild($('#' + id).closest('label'));
   });
+  $('#display-extra-slot')?.appendChild($('#auto-translate').closest('label'));
   $('#display-practice-slot')?.appendChild($('#enable-song-practice').closest('label'));
   $('#display-markup-slot')?.appendChild($('#enable-romaji-markup').closest('label'));
   const legacyFontSettings = $('#panel .font-settings');
   if (legacyFontSettings) $('#font-drawer-controls').replaceWith(legacyFontSettings);
   const tools = $('#display-tools-slot');
-  ['btn-search-history', 'btn-export', 'btn-toggle-panel'].forEach(id => tools?.appendChild($('#' + id)));
+  ['btn-search-history', 'btn-export', 'btn-overrides-panel', 'btn-toggle-panel']
+    .forEach(id => tools?.appendChild($('#' + id)));
 }
 
 function setSettingsDrawer(drawer, open) {
   if (!drawer) return;
+  if (open) drawer._returnFocus = document.activeElement;
   drawer.hidden = !open;
-  document.body.classList.toggle('settings-drawer-open', open);
+  document.body.classList.toggle(
+    'settings-drawer-open',
+    !$('#display-drawer')?.hidden || !$('#font-drawer')?.hidden
+  );
+  if (open) {
+    requestAnimationFrame(() => drawer.querySelector('.drawer-back, button, input, select, textarea')?.focus());
+  } else if (drawer._returnFocus instanceof HTMLElement) {
+    drawer._returnFocus.focus();
+  }
+}
+
+function keepFocusInDrawer(event, drawer) {
+  if (event.key !== 'Tab' || drawer?.hidden) return;
+  const focusable = [...drawer.querySelectorAll(
+    'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+  )].filter(el => !el.hidden && el.getClientRects().length);
+  if (!focusable.length) return;
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
 }
 
 function initSettingsDrawers() {
@@ -379,9 +407,12 @@ function initSettingsDrawers() {
   });
   $('#btn-done-font-settings')?.addEventListener('click', () => setSettingsDrawer(fontDrawer, false));
   document.addEventListener('keydown', event => {
-    if (event.key !== 'Escape') return;
-    if (!fontDrawer?.hidden) setSettingsDrawer(fontDrawer, false);
-    else if (!displayDrawer?.hidden) setSettingsDrawer(displayDrawer, false);
+    if (event.key === 'Escape') {
+      if (!fontDrawer?.hidden) setSettingsDrawer(fontDrawer, false);
+      else if (!displayDrawer?.hidden) setSettingsDrawer(displayDrawer, false);
+      return;
+    }
+    keepFocusInDrawer(event, fontDrawer?.hidden ? displayDrawer : fontDrawer);
   });
 }
 
@@ -405,9 +436,7 @@ function syncPanelToggleButton() {
 }
 
 function hasDirectPlaybackSource() {
-  if (player.mode === 'audio') return !!audio.src;
-  if (player.mode === 'yt') return true;
-  return false;
+  return player.mode === 'audio' && !!audio.src;
 }
 
 function syncCollapsedTimerHud() {
@@ -484,10 +513,9 @@ function saveFontSizes() {
   }
 }
 document.querySelectorAll('[data-font-settings]').forEach(container => {
-  container.innerHTML = `<button type="button" data-font-reset>恢复默认</button>` +
-    Object.entries(FONT_SIZE_LABELS).map(([key, label]) =>
+  container.innerHTML = Object.entries(FONT_SIZE_LABELS).map(([key, label]) =>
       `<label><span>${label}</span><input type="range" min="70" max="150" step="10" value="100" data-font-size="${key}" aria-label="${label}字体大小"><output>100%</output></label>`
-    ).join('');
+    ).join('') + `<button type="button" data-font-reset>恢复默认</button>`;
   container.addEventListener('input', event => {
     const key = event.target.dataset.fontSize;
     if (!Object.prototype.hasOwnProperty.call(fontSizes, key)) return;
@@ -1887,17 +1915,12 @@ studyInput?.addEventListener('keydown', (event) => {
 
 /* ---------------- Playback abstraction (audio + timer) ---------------- */
 const player = {
-  mode: 'audio', // 'audio' | 'yt' | 'timer'
-  yt: null,
-  ytReady: false,
+  mode: 'audio', // 'audio' | 'timer'
   // timer state
   timerRunning: false,
   timerBase: 0,      // performance.now() when started
   timerOffset: 0,    // accumulated seconds when paused
   getTime() {
-    if (this.mode === 'yt' && this.yt && this.ytReady) {
-      try { return this.yt.getCurrentTime() || 0; } catch { return 0; }
-    }
     if (this.mode === 'timer') {
       return this.timerRunning
         ? this.timerOffset + (performance.now() - this.timerBase) / 1000
@@ -1907,9 +1930,7 @@ const player = {
   },
   seek(t) {
     stopSongPractice();
-    if (this.mode === 'yt' && this.yt && this.ytReady) {
-      try { this.yt.seekTo(t, true); this.yt.playVideo(); } catch {}
-    } else if (this.mode === 'timer') {
+    if (this.mode === 'timer') {
       this.timerOffset = Math.max(0, t);
       this.timerBase = performance.now();
       // keep running state
@@ -2253,7 +2274,7 @@ window.addEventListener('pagehide', (event) => {
 /* Audio element timeupdate -> sync */
 audio.addEventListener('timeupdate', () => syncHighlight(audio.currentTime));
 
-/* YouTube / timer polling ticker */
+/* Timer polling ticker */
 let pollTicker = null;
 let lastAutoCenterAt = 0;
 function startPolling() {
@@ -3427,80 +3448,17 @@ async function loadFromLrclib(item) {
   });
 }
 
-/* ---------------- YouTube ---------------- */
-function parseYouTubeId(input) {
-  if (!input) return null;
-  const s = input.trim();
-  if (/^[\w-]{11}$/.test(s)) return s;
-  try {
-    const u = new URL(s);
-    if (u.hostname.includes('youtu.be')) return u.pathname.slice(1).slice(0, 11);
-    if (u.hostname.includes('youtube.com')) {
-      const v = u.searchParams.get('v');
-      if (v) return v.slice(0, 11);
-      const m = u.pathname.match(/\/(embed|shorts)\/([\w-]{11})/);
-      if (m) return m[2];
-    }
-  } catch {}
-  return null;
-}
-
-function loadYouTubeAPI() {
-  return new Promise((resolve) => {
-    if (window.YT && window.YT.Player) return resolve();
-    const tag = document.createElement('script');
-    tag.src = 'https://www.youtube.com/iframe_api';
-    document.head.appendChild(tag);
-    window.onYouTubeIframeAPIReady = () => resolve();
-  });
-}
-
 function switchToAudioMode() {
   stopSongPractice();
   player.mode = 'audio';
   stopPolling();
   hideTimerHud();
   audio.style.display = '';
-  const yw = $('#yt-wrap'); if (yw) yw.hidden = true;
-  if (player.yt) { try { player.yt.stopVideo(); } catch {} }
   // Only show player bar if an audio file is actually loaded
   setPlayerVisible(!!audio.src);
   updateSourceSummary('本地音频', $('#audio-file-name').textContent || '已选择本地文件');
   updateAudioNudgeControls();
   updateSongPracticeUI();
-}
-
-async function switchToYouTubeMode(videoId) {
-  if (ncmWorker) {
-    cancelNcmConversion();
-    setStatus('已取消 NCM 转换。');
-  }
-  stopSongPractice();
-  player.mode = 'yt';
-  audio.pause();
-  audio.style.display = 'none';
-  updateSongPracticeUI();
-  const yw = $('#yt-wrap'); if (yw) yw.hidden = false;
-  hideTimerHud();
-  await loadYouTubeAPI();
-  if (player.yt) {
-    player.yt.loadVideoById(videoId);
-    player.ytReady = true;
-  } else {
-    player.yt = new YT.Player('yt-player', {
-      videoId,
-      playerVars: { playsinline: 1, rel: 0, modestbranding: 1 },
-      events: {
-        onReady: () => { player.ytReady = true; startPolling(); },
-        onError: (e) => {
-          const codes = { 2: '无效的视频 ID', 5: 'HTML5 播放器错误', 100: '视频不存在或私有',
-                          101: '上传者禁止外站嵌入', 150: '上传者禁止外站嵌入', 153: '上传者禁止外站嵌入' };
-          setStatus(`YouTube 错误 ${e.data}：${codes[e.data] || '未知'}。请换一首或改用计时模式。`, true);
-        }
-      }
-    });
-  }
-  startPolling();
 }
 
 function switchToTimerMode() {
@@ -3509,8 +3467,6 @@ function switchToTimerMode() {
   player.mode = 'timer';
   audio.pause();
   audio.style.display = 'none';
-  const yw = $('#yt-wrap'); if (yw) yw.hidden = true;
-  if (player.yt) { try { player.yt.stopVideo(); } catch {} }
   player.timerOffset = 0;
   player.timerRunning = false;
   showTimerHud();

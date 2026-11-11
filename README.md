@@ -30,7 +30,7 @@
 | 服务 | 用途 | 是否必须 |
 |------|------|----------|
 | [Google Fonts](https://fonts.googleapis.com/) | 加载 Inter、Noto Sans JP/SC、Zen Maru Gothic 字体 | 否（缺失时回退系统字体） |
-| [unpkg CDN](https://unpkg.com/) | 加载 kuromoji、kuroshiro、kuroshiro-analyzer-kuromoji 库 | 是（假名/罗马音生成依赖） |
+| 仓库内 `public/lib/` | 加载 kuromoji、kuroshiro、kuroshiro-analyzer-kuromoji 库 | 是（假名/罗马音生成依赖） |
 
 ### 歌词与时间轴
 
@@ -61,8 +61,6 @@
 
 | 服务 | 端点 | 用途 | 是否必须 |
 |------|------|------|----------|
-| [YouTube IFrame API](https://developers.google.com/youtube/iframe_api) | `https://www.youtube.com/iframe_api` | 嵌入 YouTube 播放器（代码保留，UI 已移除入口） | 否 |
-
 ### 数据流示意
 
 ```
@@ -147,8 +145,8 @@ npx serve .
    - 「计时」：用于外部播放器，在音乐第 0 秒时点击开始。
 6. 使用「跟唱 / 阅读」按钮切换显示方式。
 7. 在阅读模式中点击每句右侧的朗读按钮，可单独朗读该句歌词。
-8. 点击「显示设置」切换假名、罗马音、中文、自动翻译、歌曲逐句练习和随播放滚动；搜索历史、导出与罗马音标记也在此处。
-9. 在「显示设置 → 字体大小」中分别调整四种文字为默认大小的 70%–150%，或点击「恢复默认」。默认罗马音仅略小于日语，学习模式也有同一组设置，两个位置保持同步；恢复默认不会改变显示开关或罗马音标记。
+8. 点击「显示设置」切换假名、罗马音、中文、自动翻译、歌曲逐句练习和随播放滚动；搜索历史、导出、读音修正与罗马音标记也在此处。设置页会锁定键盘焦点，按 Escape 或“完成”可返回歌词。
+9. 在「显示设置 → 字体大小」中分别调整四种文字为默认大小的 70%–150%，实时预览会立即更新；点击「恢复默认」只重置字体比例，不会改变显示开关或罗马音标记。默认罗马音仅略小于日语，学习模式也使用同一份持久化设置。
 10. 本地音频加载后，可用底部的「−0.5s / +0.5s」微调当前播放位置；无音频或使用计时模式时按钮会禁用，计时微调仍在计时控制和浮动 HUD 中使用。
 
 ## 阅读模式：原歌曲逐句练习
@@ -236,7 +234,7 @@ LRC 格式示例：
 | 功能 | 实现 |
 |------|------|
 | 页面结构 | 原生 HTML / CSS / JavaScript |
-| 分词与注音 | kuroshiro + kuromoji，词典文件放在 `dict/`，库通过 unpkg CDN 加载 |
+| 分词与注音 | kuroshiro + kuromoji，词典与库文件均随站点提供 |
 | 罗马音 | kuroshiro Hepburn 转写，失败时使用内置 kana fallback |
 | 歌词搜索 | LRCLIB API（返回多候选 + 行级时间轴） |
 | 逐字时间轴 | PetitLyrics API（Type 3，每个字含 starttime/endtime） |

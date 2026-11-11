@@ -1297,17 +1297,6 @@ body.no-player .lyrics-view { padding-bottom: 32px; }
   background-color: var(--input-bg);
 }
 
-.yt-wrap {
-  position: relative;
-  width: 100%;
-  max-width: 480px;
-  margin: 0 auto 8px;
-  aspect-ratio: 16 / 9;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-}
-
 /* ===== Timer HUD ===== */
 .timer-hud {
   position: fixed;
@@ -1355,7 +1344,6 @@ body.no-player .lyrics-view { padding-bottom: 32px; }
   .romaji { font-size: calc(27px * var(--font-romaji, 1)); }
   .zh { font-size: calc(16px * var(--font-zh, 1)); }
   .lyrics-view { padding-bottom: 240px; }
-  .yt-wrap { max-width: 560px; }
 }
 
 @media (max-width: 480px) {
@@ -2091,8 +2079,110 @@ body { background: linear-gradient(160deg, var(--bg-0), var(--bg-1)); }
 .settings-drawer .font-settings-controls output { color: var(--accent); text-align: right; }
 .settings-drawer input[type="range"] { accent-color: var(--accent); }
 
+/* Final mobile settings hierarchy: source status, then mode and display controls. */
+.source-summary { grid-column: 1 / -1; min-height: 38px; padding: 5px 8px; border-color: transparent; background: transparent; }
+.source-summary-icon { font-size: 15px; }
+.source-summary-copy { display: flex; align-items: baseline; gap: 7px; }
+#source-summary-title { font-size: 12px; }
+#source-summary-detail { font-size: 11px; }
+.mode-btn, .display-settings-btn { min-height: 36px; }
+.display-settings-btn { grid-column: auto; width: auto; white-space: nowrap; }
+.display-settings-btn::before { content: "☷"; margin-right: 6px; color: var(--accent); }
+
+.settings-card { padding: 14px; }
+#display-toggle-slot,
+#display-practice-slot,
+#display-extra-slot,
+#display-markup-slot { display: grid; gap: 2px; }
+.settings-card .chip,
+.settings-card .song-practice-toggle {
+  display: flex !important;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent !important;
+  color: var(--text);
+}
+.settings-card .chip span,
+.settings-card .song-practice-toggle span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+.settings-card .chip span::before {
+  order: 2;
+  width: 38px;
+  height: 22px;
+  margin: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--muted-2);
+  box-shadow: none;
+}
+.settings-card .chip span::after {
+  content: "";
+  position: absolute;
+  right: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transform: translateX(0);
+  transition: transform .18s ease;
+}
+.settings-card .chip span { position: relative; }
+.settings-card .chip:has(input:checked) span::before { background: var(--accent); }
+.settings-card .chip:has(input:checked) span::after { transform: translateX(16px); }
+.settings-card .song-practice-toggle input,
+.settings-row input {
+  width: 38px;
+  height: 22px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+.settings-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 0;
+  border-bottom: 1px solid var(--chip-border);
+  border-radius: 0;
+  background: transparent;
+}
+.drawer-tool-actions {
+  display: flex;
+  gap: 6px;
+  padding-top: 10px;
+}
+.drawer-tool-actions .icon-btn {
+  flex: 1 1 0;
+  width: auto;
+  min-height: 38px;
+  background: var(--chip-bg);
+  border-color: var(--chip-border);
+}
+.drawer-tool-actions #btn-overrides-panel::after { content: "读音"; font-size: 11px; margin-left: 4px; }
+.drawer-tool-actions #btn-toggle-panel { display: none; }
+.overrides-popover { z-index: 110; }
+.settings-preview .preview-furigana { font-size: calc(12px * var(--font-furigana, 1)); }
+.settings-preview .preview-jp { font-size: calc(22px * var(--font-jp, 1)); }
+.settings-preview .preview-romaji { font-size: calc(20px * var(--font-romaji, 1)); }
+.settings-preview .preview-zh { font-size: calc(14px * var(--font-zh, 1)); }
+.font-settings-controls [data-font-reset] {
+  order: 2;
+  min-height: 42px;
+  color: var(--text);
+  background: var(--chip-bg);
+  border-color: transparent;
+}
+
 @media (min-width: 700px) {
   .lyric-controls { grid-template-columns: minmax(280px, 1fr) auto auto; }
+  .source-summary { grid-column: 1 / -1; }
   .display-settings-btn { grid-column: auto; width: auto; }
   .settings-drawer { inset: 5vh max(12px, calc((100vw - 680px) / 2)); border: 1px solid var(--chip-border); border-radius: 18px; box-shadow: var(--panel-shadow); }
   .drawer-scroll { padding-left: 22px; padding-right: 22px; }
