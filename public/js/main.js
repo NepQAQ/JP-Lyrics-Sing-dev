@@ -207,7 +207,7 @@ function initLyricsInteractions() {
       if (act === 'play') {
         if (player.segment && !player.segment.loop && player.segment.lineId === line.id) { clearSegment(); togglePlay(); }
         else playLine(line);
-      } else if (act === 'speak') speak(line.text, { lang: state.settings.songLang === 'en' ? 'en' : 'ja' });
+      } else if (act === 'speak') speak(line.text, { lang: state.settings.songLang === 'en' || state.settings.songLang === 'ko' ? state.settings.songLang : 'ja' });
       else if (act === 'edit') openLineEditor(line);
       return;
     }

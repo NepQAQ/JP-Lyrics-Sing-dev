@@ -36,6 +36,30 @@ test('saveSettings 丢弃未知设置项（只存 DEFAULT_SETTINGS 键）', asyn
   assert.equal(s.bogusKey, undefined);
 });
 
+test('saveSettings 持久化 songLang=ko 并可读回', async () => {
+  store.clear();
+  await api.saveSettings({ songLang: 'ko' });
+  assert.equal((await api.settings()).songLang, 'ko');
+  await api.saveSettings({ songLang: 'ja' });
+  assert.equal((await api.settings()).songLang, 'ja');
+});
+
+test('translate 韩语 → zh-CN', async () => {
+  const urls = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    urls.push(String(url));
+    return { ok: true, json: async () => ({ responseData: { translatedText: '你好' } }) };
+  };
+  try {
+    const ko = await api.online.translate(['안녕하세요'], { from: 'ko' });
+    assert.deepEqual(ko.results, ['你好']);
+    assert.ok(urls[0].includes('langpair=ko|zh-CN'), urls[0]);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
 test('translate 英语 → zh-CN，默认日语 → zh-CN', async () => {
   const urls = [];
   const realFetch = globalThis.fetch;

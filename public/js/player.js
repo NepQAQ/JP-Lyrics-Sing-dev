@@ -3,7 +3,7 @@ import { $, $$, fmtTime, toast, bus, setStatus, debounce } from './util.js';
 import { state } from './state.js';
 import { api } from './api.js';
 import { renderLineContent } from './render.js';
-import { getWords, isEnglish } from './english.js';
+import { getWords, isWordMarks } from './english.js';
 import { lineStart, segmentRange, karaokeProgress, weightedChars, findActiveLineIdx, LINE_PREROLL } from './timing.js';
 
 export const RATES = [0.5, 0.6, 0.75, 0.85, 1, 1.25, 1.5];
@@ -261,7 +261,7 @@ function updateKaraoke(line, t) {
   const jp = line._el.querySelector('.jp');
   const words = getWords(line);
   if (!Array.isArray(words)) return;
-  const en = isEnglish();
+  const en = isWordMarks();
   const lines = state.song.lines;
   const kj = buildKaraoke(jp, 'rt, .w-ro, .en-note, .liaison-arc, .en-brk');
   const { p, weighted } = karaokeProgress(lines, lines.indexOf(line), t);

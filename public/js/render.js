@@ -3,8 +3,9 @@ import { $, escapeHTML, h } from './util.js';
 import { state } from './state.js';
 import { rubyHTML } from './kana.js';
 import { lineRomaji } from './analyzer.js';
-import { getWords, isEnglish } from './english.js';
+import { getWords, isEnglish, isKorean, isWordMarks } from './english.js';
 import { lineIPA, lookupIPA, getCMUDict } from './ipa.js';
+import { romanizeWord, lineRomanization } from './korean.js';
 
 export const ICONS = {
   play: '<svg viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/></svg>',
@@ -38,20 +39,21 @@ function romajiWordHTML(w, i, colorIdx) {
   return `<span class="${cls.join(' ')}" data-wi="${i}">${escapeHTML(w.r || '')}${tone}</span>`;
 }
 
-/** 英语 .jp 区域：逐字母 span（可划掉）+ 连音弧（上方）+ 备注（下方）。 */
+/** 英语 / 韩语 .jp 区域：英语逐字母 span（可划掉）+ 连音弧（上方）+ 备注（下方）；韩语按音节块渲染。 */
 function englishJpHTML(line, { inline = false } = {}) {
   const words = getWords(line);
   if (!Array.isArray(words) || !words.length) {
     return `<span class="w pending">${escapeHTML(line.text)}</span>`;
   }
-  const dict = getCMUDict();
+  const ko = isKorean();
+  const dict = ko ? null : getCMUDict();
   let color = 0;
   return words.map((w, i) => {
     if (w.p) return `<span class="w w-p" data-wi="${i}">${escapeHTML(w.t)}</span>`;
     const ci = color++;
     const m = w.m || {};
     const slash = Array.isArray(m.slash) ? m.slash : [];
-    const letters = [...w.t].map((ch, off) =>
+    const letters = ko ? escapeHTML(w.t) : [...w.t].map((ch, off) =>
       `<span class="en-ltr${slash.includes(off) ? ' slashed' : ''}">${escapeHTML(ch)}</span>`).join('');
     const cls = ['w', 'en-word', `c${ci % 4}`];
     if (m.hl) cls.push(`hl-${m.hl}`);
@@ -64,14 +66,18 @@ function englishJpHTML(line, { inline = false } = {}) {
     if (!inline) {
       return `<span class="${cls.join(' ')}" data-wi="${i}">${letters}${note}${arc}</span>${brk}`;
     }
-    const wipa = dict ? (lookupIPA(w.t, dict) || '') : '';
+    const wipa = ko ? romanizeWord(w.t) : (dict ? (lookupIPA(w.t, dict) || '') : '');
     return `<span class="${cls.join(' ')}" data-wi="${i}">`
       + `<span class="w-jp">${letters}${note}</span><span class="w-ro">${escapeHTML(wipa)}</span>${arc}</span>${brk}`;
   }).join('');
 }
 
-/** 英语 .ro 区域：整行 IPA 音标（词典未就绪时留空，加载后重渲染）。 */
+/** 英语 .ro 区域：整行 IPA 音标（词典未就绪时留空，加载后重渲染）；韩语：整行罗马字（纯算法）。 */
 function englishIpaHTML(line) {
+  if (isKorean()) {
+    const ro = lineRomanization(getWords(line));
+    return ro ? `<span class="ipa-line">${escapeHTML(ro)}</span>` : '';
+  }
   const dict = getCMUDict();
   if (!dict) return '';
   const ipa = lineIPA(getWords(line), dict);
@@ -80,7 +86,7 @@ function englishIpaHTML(line) {
 
 /** .jp 区域 HTML */
 export function jpHTML(line, { inline = false } = {}) {
-  if (isEnglish()) return englishJpHTML(line, { inline });
+  if (isWordMarks()) return englishJpHTML(line, { inline });
   const script = state.settings.kanaScript || 'hiragana';
   if (!Array.isArray(line.words) || !line.words.length) {
     return `<span class="w pending">${escapeHTML(line.text)}</span>`;
@@ -103,7 +109,7 @@ export function jpHTML(line, { inline = false } = {}) {
 
 /** .ro 区域 HTML（逐词 span，与 .jp 的 data-wi 对应，悬停互相高亮） */
 export function romajiHTML(line) {
-  if (isEnglish()) return englishIpaHTML(line);
+  if (isWordMarks()) return englishIpaHTML(line);
   if (line.romaji) return `<span class="ro-override">${escapeHTML(line.romaji)}</span>`;
   if (!Array.isArray(line.words)) return '';
   let color = 0;
@@ -123,7 +129,7 @@ export function renderLineContent(line) {
   if (!el) return;
   const inline = state.settings.layout === 'inline';
   const jp = el.querySelector('.jp');
-  jp.lang = isEnglish() ? 'en' : 'ja';
+  jp.lang = isEnglish() ? 'en' : (isKorean() ? 'ko' : 'ja');
   jp.innerHTML = jpHTML(line, { inline });
   jp._karaoke = null;
   const ro = el.querySelector('.ro');
@@ -213,6 +219,7 @@ export function applyDisplayClasses() {
   const s = state.settings;
   const b = document.body;
   b.classList.toggle('lang-en', s.songLang === 'en');
+  b.classList.toggle('lang-ko', s.songLang === 'ko');
   b.classList.toggle('hide-furigana', !s.showFurigana);
   b.classList.toggle('hide-romaji', !s.showRomaji);
   b.classList.toggle('hide-zh', !s.showZh);

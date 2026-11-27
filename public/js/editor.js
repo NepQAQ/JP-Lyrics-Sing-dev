@@ -13,7 +13,7 @@ import { splitReading, wordKanaToRomaji, wordRomajiToKana, toHiragana, toKatakan
 import { attachRomajiIME } from './ime.js';
 import { lyricTime, playLine } from './player.js';
 import { lineStart } from './timing.js';
-import { getWords, isEnglish, marksFromWords } from './english.js';
+import { getWords, isEnglish, isKorean, isWordMarks, marksField, marksFromWords } from './english.js';
 
 const HL_COLORS = [
   { key: 'y', label: '黄' }, { key: 'g', label: '绿' }, { key: 'b', label: '蓝' },
@@ -195,9 +195,9 @@ async function applyToSelection(mutator, kind, note) {
   const res = mutator(words);
   const next = res instanceof Promise ? await res : res;
   try {
-    if (isEnglish()) {
-      // 英语标记单独持久化到 enMarks（按词序号），不改动日语 words
-      await saveLine(line, { enMarks: marksFromWords(next) }, { kind, note });
+    if (isWordMarks()) {
+      // 英语 / 韩语标记单独持久化（按词序号，enMarks / koMarks 互不干扰），不改动日语 words
+      await saveLine(line, { [marksField()]: marksFromWords(next) }, { kind, note });
     } else {
       await saveLine(line, { words: next, wordsEdited: true }, { kind, note });
     }
@@ -248,7 +248,7 @@ function initToolbar() {
     paintSelection();
   };
   $('#wt-box').addEventListener('click', toggle('box', '边框'));
-  $('#wt-link').addEventListener('click', toggle('link', () => (isEnglish() ? '连音' : '连读')));
+  $('#wt-link').addEventListener('click', toggle('link', () => (isWordMarks() ? '连音' : '连读')));
   $('#wt-brk').addEventListener('click', toggle('brk', '停顿'));
   $('#wt-clear').addEventListener('click', async () => {
     await applyToSelection(words => {
@@ -323,15 +323,16 @@ function initToolbar() {
   bus.on('lang:changed', () => { clearSelection(); syncLangToolbar(); });
 }
 
-// 工具条随语言切换：英语显示「划掉」、连读改称「连音」、隐藏日语专属控件
+// 工具条随语言切换：英语显示「划掉」、英韩连读改称「连音」、隐藏日语专属控件
 function syncLangToolbar() {
   const en = isEnglish();
+  const wm = isWordMarks();
   const slash = $('#wt-slash');
   if (slash) slash.hidden = !en;
-  $('#wt-link').textContent = en ? '连音' : '连读';
-  $('#wt-link').title = en ? '与下一个词连音（上方红色 ⌒）' : '与下一个词连读（罗马音用 ‿ 连接）';
-  $('#wt-edit').textContent = en ? '✎ 编辑…' : '✎ 读音…';
-  $('#wt-info').lang = en ? 'en' : 'ja';
+  $('#wt-link').textContent = wm ? '连音' : '连读';
+  $('#wt-link').title = wm ? '与下一个词连音（上方红色 ⌒）' : '与下一个词连读（罗马音用 ‿ 连接）';
+  $('#wt-edit').textContent = wm ? '✎ 编辑…' : '✎ 读音…';
+  $('#wt-info').lang = en ? 'en' : (isKorean() ? 'ko' : 'ja');
   if (!en) { const row = $('#wt-slash-row'); if (row) row.hidden = true; }
 }
 
@@ -343,7 +344,9 @@ export function setEditing(on) {
   if (!on) clearSelection();
   else toast(isEnglish()
     ? '编辑模式：点击单词选中，可划掉字母 / 连音 / 备注；点「✎」编辑整行'
-    : '编辑模式：点击单词选中，Shift+点击多选；点「✎」编辑整行', { ms: 2600 });
+    : isKorean()
+      ? '编辑模式：点击单词选中，可连音 / 备注；点「✎」编辑整行'
+      : '编辑模式：点击单词选中，Shift+点击多选；点「✎」编辑整行', { ms: 2600 });
 }
 
 // =============================================================== 行编辑器
@@ -353,9 +356,10 @@ export function openLineEditor(line, { focusWord = -1 } = {}) {
   ed.line = line;
   ed.textDirty = false;
   const en = isEnglish();
-  $('#dlg-line').classList.toggle('en-mode', en);
-  $('#le-text').lang = en ? 'en' : 'ja';
-  $('#le-text-label').textContent = en ? '原文（英语）' : '原文（日语）';
+  const wm = isWordMarks();
+  $('#dlg-line').classList.toggle('en-mode', wm);
+  $('#le-text').lang = en ? 'en' : (isKorean() ? 'ko' : 'ja');
+  $('#le-text-label').textContent = en ? '原文（英语）' : (isKorean() ? '原文（韩语）' : '原文（日语）');
   ed.draft = {
     text: line.text,
     time: line.time,
@@ -390,7 +394,7 @@ export function openLineEditor(line, { focusWord = -1 } = {}) {
 }
 
 function renderEditor() {
-  if (!isEnglish()) { renderChars(); renderWordRows(); renderRomajiBox(); }
+  if (!isWordMarks()) { renderChars(); renderWordRows(); renderRomajiBox(); }
   $('#le-stale').hidden = !ed.textDirty;
   $('#le-seg').classList.toggle('stale', ed.textDirty);
 }
@@ -571,8 +575,8 @@ async function saveEditor() {
   if (!line) return;
   const text = $('#le-text').value.trim();
   if (!text) { toast('原文不能为空', { error: true }); return; }
-  if (isEnglish()) {
-    // 英语行只编辑时间 / 原文 / 中文；改原文时清空按词序号存的英语标记
+  if (isWordMarks()) {
+    // 英语 / 韩语行只编辑时间 / 原文 / 中文；改原文时清空按词序号存的标记
     const fields = {};
     const t = parseTime($('#le-time').value);
     const curStart = lineStart(line);
@@ -584,7 +588,7 @@ async function saveEditor() {
         fields.wordTiming = line.wordTiming.map(w => ({ ...w, starttime: w.starttime + ms, endtime: w.endtime + ms }));
       }
     }
-    if (text !== line.text) { fields.text = text; fields.enMarks = null; }
+    if (text !== line.text) { fields.text = text; fields[marksField()] = null; }
     const zh = $('#le-zh').value.trim();
     if (zh !== (line.zh || '')) fields.zh = zh;
     if (!Object.keys(fields).length) { $('#dlg-line').close(); return; }

@@ -265,7 +265,7 @@ body.mode-sing .line.active .jp { font-size: calc(25px * var(--font-scale)); }
 body.hide-furigana .jp rt { display: none; }
 .ro { font-size: calc(14px * var(--font-scale)); color: var(--text-2); line-height: 1.9; letter-spacing: .01em; }
 .ro.empty { display: none; }
-body.hide-romaji:not(.lang-en) .ro, body.hide-romaji:not(.lang-en) .w-ro { display: none; }
+body.hide-romaji:not(.lang-en):not(.lang-ko) .ro, body.hide-romaji:not(.lang-en):not(.lang-ko) .w-ro { display: none; }
 .zh { font-size: calc(13.5px * var(--font-scale)); color: var(--muted); margin-top: 2px; }
 .zh:empty, body.hide-zh .zh { display: none; }
 .line.analyzing .jp .pending { color: var(--text-2); }
@@ -323,11 +323,11 @@ body.ws-long-only .line:not(.long) .jp .w, body.ws-long-only .line:not(.long) .r
 .tone { color: var(--accent); font-weight: 700; margin-left: 1px; }
 .hover-pair { background: var(--accent-soft) !important; }
 
-/* ===== 英语模式：音标行 + 划掉 / 连音 / 备注标记 ===== */
-body.lang-en [data-lang="ja"] { display: none !important; }
+/* ===== 英语 / 韩语模式：音标 / 罗马字行 + 连音 / 备注等标记 ===== */
+body.lang-en [data-lang="ja"], body.lang-ko [data-lang="ja"] { display: none !important; }
 body:not(.lang-en) [data-lang="en"] { display: none !important; }
-body.lang-en .jp { font-family: var(--font); font-weight: 600; letter-spacing: 0; }
-body.lang-en .jp .en-word { position: relative; display: inline-block; }
+body.lang-en .jp, body.lang-ko .jp { font-family: var(--font); font-weight: 600; letter-spacing: 0; }
+body.lang-en .jp .en-word, body.lang-ko .jp .en-word { position: relative; display: inline-block; }
 .en-ltr { position: relative; display: inline-block; }
 /* 划掉：穿过字母的粉红斜线（不发音字母） */
 .en-ltr.slashed::after {
@@ -342,7 +342,7 @@ body.lang-en .jp .en-word { position: relative; display: inline-block; }
   white-space: nowrap; user-select: none; pointer-events: none;
 }
 body.layout-inline .liaison-arc { top: -.3em; }
-body.lang-en .jp .en-word.mk-link {
+body.lang-en .jp .en-word.mk-link, body.lang-ko .jp .en-word.mk-link {
   text-decoration: underline; text-decoration-color: #8b5cf6; text-decoration-thickness: 2px; text-underline-offset: 4px;
 }
 /* 备注：词下方小红字 */

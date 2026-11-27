@@ -22,7 +22,7 @@ const cache = new Map();
 const choice = () => VOICES[state.settings.voice] || VOICES['cn-default'];
 
 export function splitSentences(text, lang = 'ja') {
-  const re = lang === 'en' ? /[^.!?]+[.!?]?/g : /[^。！？!?]+[。！？!?]?/g;
+  const re = lang === 'en' || lang === 'ko' ? /[^.!?]+[.!?]?/g : /[^。！？!?]+[。！？!?]?/g;
   return String(text || '')
     .split(/\r?\n+/)
     .flatMap(line => (line.trim().match(re) || [line]))
@@ -33,8 +33,9 @@ export function splitSentences(text, lang = 'ja') {
 function chunks(text, max = 120, lang = 'ja') {
   const out = [];
   let cur = '';
-  const endRe = lang === 'en' ? /[.!?]$/ : /[。！？!?]$/;
-  const joiner = lang === 'en' ? ' ' : '。';
+  const latin = lang === 'en' || lang === 'ko';
+  const endRe = latin ? /[.!?]$/ : /[。！？!?]$/;
+  const joiner = latin ? ' ' : '。';
   for (const part of splitSentences(text, lang)) {
     if ((cur + part).length > max && cur) { out.push(cur); cur = ''; }
     if (part.length > max) {
@@ -68,8 +69,8 @@ async function voicevox(text, speaker) {
 
 async function providers(text, lang = 'ja') {
   const q = encodeURIComponent(text);
-  if (lang === 'en') {
-    return [{ name: 'Google', url: `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q=${q}` }];
+  if (lang === 'en' || lang === 'ko') {
+    return [{ name: 'Google', url: `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${lang}&q=${q}` }];
   }
   const c = choice();
   if (c.browserOnly) return [];
@@ -103,14 +104,15 @@ function playUrl(url, id) {
 function speakBrowser(text, id, lang = 'ja') {
   return new Promise((resolve, reject) => {
     if (!('speechSynthesis' in window)) { reject(new Error('浏览器不支持朗读')); return; }
-    const en = lang === 'en';
     const voices = speechSynthesis.getVoices();
-    const voice = en
+    const voice = lang === 'en'
       ? (voices.find(v => /^en[-_]/i.test(v.lang)) || voices.find(v => /english/i.test(v.name)))
-      : (voices.find(v => /^ja[-_]/i.test(v.lang)) || voices.find(v => /japanese|日本/i.test(v.name)));
+      : lang === 'ko'
+        ? (voices.find(v => /^ko[-_]/i.test(v.lang)) || voices.find(v => /korean|한국/i.test(v.name)))
+        : (voices.find(v => /^ja[-_]/i.test(v.lang)) || voices.find(v => /japanese|日本/i.test(v.name)));
     if (id !== runId) { reject(new Error('cancel')); return; }
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = en ? 'en-US' : 'ja-JP';
+    u.lang = lang === 'en' ? 'en-US' : lang === 'ko' ? 'ko-KR' : 'ja-JP';
     u.rate = BROWSER_RATE;
     if (voice) u.voice = voice;
     u.onend = resolve;
@@ -147,7 +149,7 @@ export async function speak(text, { lang = 'ja', onStatus = (m, e) => setStatus(
     if (!ok) {
       try { await speakBrowser(chunk, id, lang); } catch (e) {
         if (id !== runId) return;
-        onStatus(lang === 'en' ? '朗读失败：在线语音与浏览器英语语音都不可用' : '朗读失败：在线语音与浏览器日语语音都不可用', true);
+        onStatus(lang === 'ja' ? '朗读失败：在线语音与浏览器日语语音都不可用' : '朗读失败：在线语音与浏览器语音都不可用', true);
         return;
       }
     }

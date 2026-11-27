@@ -6,9 +6,23 @@
 //
 // 纯函数（segmentEnglish / marksFromWords）不依赖浏览器，可在 Node 中测试。
 import { state } from './state.js';
+import { koreanWords, isKorean } from './korean.js';
+
+export { isKorean };
 
 export function isEnglish() {
   return state.settings.songLang === 'en';
+}
+
+/** 英语 / 韩语共用「按词标记」机制（区别于日语的读音标记）。 */
+export function isWordMarks() {
+  const l = state.settings.songLang;
+  return l === 'en' || l === 'ko';
+}
+
+/** 当前语言的标记持久化字段（各语言互不干扰）。 */
+export function marksField() {
+  return state.settings.songLang === 'ko' ? 'koMarks' : 'enMarks';
 }
 
 // 词 = 字母 / 数字 / 撇号 / 连字符的连续串；其余（空白、标点）为 p:1 占位词。
@@ -61,7 +75,10 @@ export function englishWords(line) {
 
 /** 当前语言下用于渲染 / 跟唱 / 标记的单词数组。 */
 export function getWords(line) {
-  return isEnglish() ? englishWords(line) : line.words;
+  const l = state.settings.songLang;
+  if (l === 'en') return englishWords(line);
+  if (l === 'ko') return koreanWords(line);
+  return line.words;
 }
 
 /** 英语标记类型（工具条用）。slash 为词内被划掉字母的字符偏移数组。 */
