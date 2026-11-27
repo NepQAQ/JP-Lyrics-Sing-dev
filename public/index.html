@@ -78,6 +78,13 @@
 <!-- 显示设置 -->
 <div id="settings" class="popover settings" hidden>
   <div class="set-group">
+    <div class="set-label">语言 <span class="muted small">英语歌曲自动改用音标，不显示罗马音</span></div>
+    <div class="seg small">
+      <label><input type="radio" name="songlang" value="ja" data-set="songLang" /><span>日语</span></label>
+      <label><input type="radio" name="songlang" value="en" data-set="songLang" /><span>英语</span></label>
+    </div>
+  </div>
+  <div class="set-group">
     <div class="set-label">视图</div>
     <div class="seg small">
       <label><input type="radio" name="vm" value="sing" data-set="viewMode" /><span>跟唱（高亮并居中当前句）</span></label>
@@ -104,11 +111,11 @@
   <div class="set-group">
     <div class="set-label">显示</div>
     <div class="chips">
-      <label class="chk"><input type="checkbox" data-set="showFurigana" /> 假名注音</label>
-      <label class="chk"><input type="checkbox" data-set="showRomaji" /> 罗马音</label>
+      <label class="chk" data-lang="ja"><input type="checkbox" data-set="showFurigana" /> 假名注音</label>
+      <label class="chk" data-lang="ja"><input type="checkbox" data-set="showRomaji" /> 罗马音</label>
       <label class="chk"><input type="checkbox" data-set="showZh" /> 中文</label>
     </div>
-    <div class="seg small">
+    <div class="seg small" data-lang="ja">
       <label><input type="radio" name="script" value="hiragana" data-set="kanaScript" /><span>注音：平假名</span></label>
       <label><input type="radio" name="script" value="katakana" data-set="kanaScript" /><span>片假名</span></label>
     </div>
@@ -305,9 +312,9 @@
     <button id="wt-close" class="icon-btn tiny" type="button" aria-label="关闭">×</button>
   </div>
   <div class="wt-row">
-    <button id="wt-merge" class="btn small" type="button" title="把选中的多个词合并成一个">合并</button>
-    <button id="wt-split" class="btn small" type="button" title="在字之间切开">拆分…</button>
-    <span class="wt-sep"></span>
+    <button id="wt-merge" class="btn small" type="button" data-lang="ja" title="把选中的多个词合并成一个">合并</button>
+    <button id="wt-split" class="btn small" type="button" data-lang="ja" title="在字之间切开">拆分…</button>
+    <span class="wt-sep" data-lang="ja"></span>
     <button class="sw hl-y" type="button" data-hl="y" title="黄色高亮"></button>
     <button class="sw hl-g" type="button" data-hl="g" title="绿色高亮"></button>
     <button class="sw hl-b" type="button" data-hl="b" title="蓝色高亮"></button>
@@ -317,10 +324,11 @@
     <button id="wt-clear" class="btn small ghost" type="button" title="清除标记">清除</button>
   </div>
   <div class="wt-row">
+    <button id="wt-slash" class="btn small" type="button" data-lang="en" hidden title="划掉不发音的字母（点选字母）">划掉</button>
     <button id="wt-link" class="btn small" type="button" title="与下一个词连读（罗马音用 ‿ 连接）">连读</button>
     <button id="wt-brk" class="btn small" type="button" title="在这个词后停顿 / 换气">停顿</button>
     <button id="wt-note" class="btn small" type="button" title="给词添加备注">备注</button>
-    <span class="wt-tones" title="声调标记（给中文母语者的发音提示）">
+    <span class="wt-tones" data-lang="ja" title="声调标记（给中文母语者的发音提示）">
       <button type="button" data-tone="1">ˉ</button><button type="button" data-tone="2">ˊ</button><button type="button" data-tone="3">ˇ</button><button type="button" data-tone="4">ˋ</button>
     </span>
     <button id="wt-edit" class="btn small" type="button" title="编辑读音 / 罗马音 / 整行">✎ 读音…</button>
@@ -328,6 +336,10 @@
   <div id="wt-note-row" class="wt-row" hidden>
     <input id="wt-note-input" class="input" maxlength="24" placeholder="备注（回车保存，留空删除）" />
     <button id="wt-note-save" class="btn small primary" type="button">保存</button>
+  </div>
+  <div id="wt-slash-row" class="wt-row" hidden>
+    <span class="wt-info muted small">点字母划掉 / 取消：</span>
+    <span id="wt-slash-chips" class="slash-chips"></span>
   </div>
 </div>
 
@@ -341,14 +353,14 @@
       <button id="le-preview" class="btn small" type="button">试听这一句</button>
     </div>
     <div class="field">
-      <div class="field-label">原文（日语）
-        <label class="chk small" title="不用日语输入法：打 kaze → かぜ，大写 MONSUTA- → モンスター；含英文的行请关掉"><input id="le-text-ime" type="checkbox" /> 罗马音输入</label>
+      <div class="field-label"><span id="le-text-label">原文（日语）</span>
+        <label class="chk small" data-lang="ja" title="不用日语输入法：打 kaze → かぜ，大写 MONSUTA- → モンスター；含英文的行请关掉"><input id="le-text-ime" type="checkbox" /> 罗马音输入</label>
       </div>
       <input id="le-text" class="input jp-input" lang="ja" />
     </div>
-    <div id="le-stale" class="notice" hidden>原文已修改：保存时会自动重新分词，或 <button id="le-reanalyze" type="button" class="link">立即重新分析</button></div>
+    <div id="le-stale" class="notice" data-lang="ja" hidden>原文已修改：保存时会自动重新分词，或 <button id="le-reanalyze" type="button" class="link">立即重新分析</button></div>
 
-    <div id="le-seg" class="seg-editor">
+    <div id="le-seg" class="seg-editor" data-lang="ja">
       <div class="field-label">分词 <span class="muted small">点击字与字之间的竖线：<b>实线</b> = 词的分界（点击合并），<b>虚线</b> = 词内部（点击切开）</span></div>
       <div id="le-chars" class="seg-chars" lang="ja"></div>
       <div class="word-table-head">
@@ -363,14 +375,14 @@
       </div>
     </div>
 
-    <div class="field">
+    <div class="field" data-lang="ja">
       <div class="field-label">整行罗马音 <span class="muted small">与上面各词双向同步；增删了词时自动变为整行覆盖</span> <label class="chk small"><input id="le-romaji-manual" type="checkbox" /> 整行覆盖</label></div>
       <textarea id="le-romaji" class="input" rows="2"></textarea>
     </div>
     <label class="field"><span>中文</span><textarea id="le-zh" class="input" rows="2" lang="zh-CN"></textarea></label>
     <div class="chips">
       <label class="chk"><input id="le-same" type="checkbox" /> 同步到本曲相同歌词<span id="le-same-count" class="muted small"></span></label>
-      <label class="chk" title="自动分词时把这些词当作整体并使用你的读音，对所有歌曲生效"><input id="le-dict" type="checkbox" /> 把修改过的词加入我的词典</label>
+      <label class="chk" data-lang="ja" title="自动分词时把这些词当作整体并使用你的读音，对所有歌曲生效"><input id="le-dict" type="checkbox" /> 把修改过的词加入我的词典</label>
     </div>
   </div>
   <div class="dlg-foot">

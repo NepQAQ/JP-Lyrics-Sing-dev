@@ -265,7 +265,7 @@ body.mode-sing .line.active .jp { font-size: calc(25px * var(--font-scale)); }
 body.hide-furigana .jp rt { display: none; }
 .ro { font-size: calc(14px * var(--font-scale)); color: var(--text-2); line-height: 1.9; letter-spacing: .01em; }
 .ro.empty { display: none; }
-body.hide-romaji .ro, body.hide-romaji .w-ro { display: none; }
+body.hide-romaji:not(.lang-en) .ro, body.hide-romaji:not(.lang-en) .w-ro { display: none; }
 .zh { font-size: calc(13.5px * var(--font-scale)); color: var(--muted); margin-top: 2px; }
 .zh:empty, body.hide-zh .zh { display: none; }
 .line.analyzing .jp .pending { color: var(--text-2); }
@@ -322,6 +322,51 @@ body.ws-long-only .line:not(.long) .jp .w, body.ws-long-only .line:not(.long) .r
 .ro-link { color: var(--accent); }
 .tone { color: var(--accent); font-weight: 700; margin-left: 1px; }
 .hover-pair { background: var(--accent-soft) !important; }
+
+/* ===== 英语模式：音标行 + 划掉 / 连音 / 备注标记 ===== */
+body.lang-en [data-lang="ja"] { display: none !important; }
+body:not(.lang-en) [data-lang="en"] { display: none !important; }
+body.lang-en .jp { font-family: var(--font); font-weight: 600; letter-spacing: 0; }
+body.lang-en .jp .en-word { position: relative; display: inline-block; }
+.en-ltr { position: relative; display: inline-block; }
+/* 划掉：穿过字母的粉红斜线（不发音字母） */
+.en-ltr.slashed::after {
+  content: ""; position: absolute; left: -12%; right: -12%; top: 52%; height: 2px;
+  background: #e0457b; transform: rotate(-30deg); transform-origin: center;
+  border-radius: 2px; pointer-events: none;
+}
+/* 连音：词间上方红色 ⌒ */
+.liaison-arc {
+  color: var(--danger); font-size: .95em; font-weight: 700; line-height: 1;
+  vertical-align: .5em; margin: 0 -.12em; user-select: none; pointer-events: none;
+}
+body.lang-en .jp .en-word.mk-link {
+  text-decoration: underline; text-decoration-color: #8b5cf6; text-decoration-thickness: 2px; text-underline-offset: 4px;
+}
+/* 备注：词下方小红字 */
+.en-note {
+  position: absolute; left: 50%; top: 100%; transform: translateX(-50%); margin-top: .05em;
+  font-family: var(--font); font-size: .42em; font-weight: 500; color: var(--danger);
+  line-height: 1; white-space: nowrap; letter-spacing: 0; pointer-events: none; user-select: none;
+}
+body.layout-inline .en-note { position: static; transform: none; display: block; margin-top: 0; }
+/* 停顿：词间红色 / */
+.en-brk { color: var(--danger); font-weight: 700; margin: 0 .18em; user-select: none; pointer-events: none; }
+/* 整行音标（占用罗马音槽位） */
+.ipa-line { font-family: var(--font); font-style: italic; font-size: .95em; color: var(--text-2); letter-spacing: .01em; }
+/* 划掉字母选择片 */
+.slash-chips { display: inline-flex; gap: 3px; flex-wrap: wrap; }
+.slash-chip {
+  position: relative; min-width: 24px; height: 26px; padding: 0 5px; cursor: pointer;
+  border: 1px solid var(--border-strong); border-radius: 6px; background: var(--surface);
+  color: var(--text); font-weight: 600; font-size: 14px;
+}
+.slash-chip.on { color: #e0457b; border-color: #e0457b; background: rgba(224, 69, 123, .12); }
+.slash-chip.on::after {
+  content: ""; position: absolute; left: 2px; right: 2px; top: 50%; height: 2px;
+  background: #e0457b; transform: rotate(-30deg); border-radius: 2px;
+}
+#dlg-line.en-mode #le-text { font-family: var(--font); }
 
 /* 逐词对照布局：每个词一列（注音 / 汉字 / 罗马音） */
 body.layout-inline .jp { line-height: 1.5; }

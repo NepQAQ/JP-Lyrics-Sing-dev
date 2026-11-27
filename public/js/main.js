@@ -50,7 +50,7 @@ function syncSettingsUI() {
 }
 
 function initSettingsUI() {
-  const RERENDER = new Set(['layout', 'kanaScript', 'longLineChars']);
+  const RERENDER = new Set(['layout', 'kanaScript', 'longLineChars', 'songLang']);
   $$('#settings [data-set]').forEach(el => {
     el.addEventListener('change', () => {
       const key = el.dataset.set;
@@ -61,6 +61,7 @@ function initSettingsUI() {
       else val = el.value;
       patchSettings({ [key]: val }, { rerender: RERENDER.has(key) });
       if (key === 'preservePitch') $('#audio').preservesPitch = val;
+      if (key === 'songLang') { bus.emit('lang:changed', { lang: val }); analyzeSong(); }
     });
   });
   $('#btn-settings').addEventListener('click', (e) => { e.stopPropagation(); togglePopover('#settings', '#btn-settings'); });
@@ -206,7 +207,7 @@ function initLyricsInteractions() {
       if (act === 'play') {
         if (player.segment && !player.segment.loop && player.segment.lineId === line.id) { clearSegment(); togglePlay(); }
         else playLine(line);
-      } else if (act === 'speak') speak(line.text);
+      } else if (act === 'speak') speak(line.text, { lang: state.settings.songLang === 'en' ? 'en' : 'ja' });
       else if (act === 'edit') openLineEditor(line);
       return;
     }

@@ -21,24 +21,27 @@ const cache = new Map();
 
 const choice = () => VOICES[state.settings.voice] || VOICES['cn-default'];
 
-export function splitSentences(text) {
+export function splitSentences(text, lang = 'ja') {
+  const re = lang === 'en' ? /[^.!?]+[.!?]?/g : /[^。！？!?]+[。！？!?]?/g;
   return String(text || '')
     .split(/\r?\n+/)
-    .flatMap(line => (line.trim().match(/[^。！？!?]+[。！？!?]?/g) || [line]))
+    .flatMap(line => (line.trim().match(re) || [line]))
     .map(s => s.trim())
     .filter(Boolean);
 }
 
-function chunks(text, max = 120) {
+function chunks(text, max = 120, lang = 'ja') {
   const out = [];
   let cur = '';
-  for (const part of splitSentences(text)) {
+  const endRe = lang === 'en' ? /[.!?]$/ : /[。！？!?]$/;
+  const joiner = lang === 'en' ? ' ' : '。';
+  for (const part of splitSentences(text, lang)) {
     if ((cur + part).length > max && cur) { out.push(cur); cur = ''; }
     if (part.length > max) {
       for (let i = 0; i < part.length; i += max) out.push(part.slice(i, i + max));
       continue;
     }
-    cur += (cur && !/[。！？!?]$/.test(cur) ? '。' : '') + part;
+    cur += (cur && !endRe.test(cur) ? joiner : '') + part;
   }
   if (cur) out.push(cur);
   return out;
@@ -63,10 +66,13 @@ async function voicevox(text, speaker) {
   }
 }
 
-async function providers(text) {
+async function providers(text, lang = 'ja') {
+  const q = encodeURIComponent(text);
+  if (lang === 'en') {
+    return [{ name: 'Google', url: `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q=${q}` }];
+  }
   const c = choice();
   if (c.browserOnly) return [];
-  const q = encodeURIComponent(text);
   const china = [
     { name: '百度', url: `https://fanyi.baidu.com/gettts?lan=jp&text=${q}&spd=4&source=web` },
     { name: '有道', url: `https://dict.youdao.com/dictvoice?audio=${q}&le=jap` },
@@ -94,14 +100,17 @@ function playUrl(url, id) {
   });
 }
 
-function speakBrowser(text, id) {
+function speakBrowser(text, id, lang = 'ja') {
   return new Promise((resolve, reject) => {
     if (!('speechSynthesis' in window)) { reject(new Error('浏览器不支持朗读')); return; }
+    const en = lang === 'en';
     const voices = speechSynthesis.getVoices();
-    const voice = voices.find(v => /^ja[-_]/i.test(v.lang)) || voices.find(v => /japanese|日本/i.test(v.name));
+    const voice = en
+      ? (voices.find(v => /^en[-_]/i.test(v.lang)) || voices.find(v => /english/i.test(v.name)))
+      : (voices.find(v => /^ja[-_]/i.test(v.lang)) || voices.find(v => /japanese|日本/i.test(v.name)));
     if (id !== runId) { reject(new Error('cancel')); return; }
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'ja-JP';
+    u.lang = en ? 'en-US' : 'ja-JP';
     u.rate = BROWSER_RATE;
     if (voice) u.voice = voice;
     u.onend = resolve;
@@ -117,15 +126,15 @@ export function stopSpeech() {
   if (currentAudio) { currentAudio.pause(); currentAudio.src = ''; currentAudio = null; }
 }
 
-export async function speak(text, { onStatus = (m, e) => setStatus(m, { error: e }) } = {}) {
+export async function speak(text, { lang = 'ja', onStatus = (m, e) => setStatus(m, { error: e }) } = {}) {
   const src = String(text || '').trim();
   if (!src) return;
   stopSpeech();
   const id = runId;
-  for (const chunk of chunks(src)) {
+  for (const chunk of chunks(src, 120, lang)) {
     if (id !== runId) return;
     let ok = false;
-    for (const p of await providers(chunk)) {
+    for (const p of await providers(chunk, lang)) {
       try {
         onStatus(`朗读中：${p.name}`);
         await playUrl(p.url, id);
@@ -136,9 +145,9 @@ export async function speak(text, { onStatus = (m, e) => setStatus(m, { error: e
       }
     }
     if (!ok) {
-      try { await speakBrowser(chunk, id); } catch (e) {
+      try { await speakBrowser(chunk, id, lang); } catch (e) {
         if (id !== runId) return;
-        onStatus('朗读失败：在线语音与浏览器日语语音都不可用', true);
+        onStatus(lang === 'en' ? '朗读失败：在线语音与浏览器英语语音都不可用' : '朗读失败：在线语音与浏览器日语语音都不可用', true);
         return;
       }
     }

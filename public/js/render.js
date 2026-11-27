@@ -3,6 +3,8 @@ import { $, escapeHTML, h } from './util.js';
 import { state } from './state.js';
 import { rubyHTML } from './kana.js';
 import { lineRomaji } from './analyzer.js';
+import { getWords, isEnglish } from './english.js';
+import { lineIPA, lookupIPA, getCMUDict } from './ipa.js';
 
 export const ICONS = {
   play: '<svg viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/></svg>',
@@ -36,8 +38,49 @@ function romajiWordHTML(w, i, colorIdx) {
   return `<span class="${cls.join(' ')}" data-wi="${i}">${escapeHTML(w.r || '')}${tone}</span>`;
 }
 
+/** 英语 .jp 区域：逐字母 span（可划掉）+ 连音弧（上方）+ 备注（下方）。 */
+function englishJpHTML(line, { inline = false } = {}) {
+  const words = getWords(line);
+  if (!Array.isArray(words) || !words.length) {
+    return `<span class="w pending">${escapeHTML(line.text)}</span>`;
+  }
+  const dict = getCMUDict();
+  let color = 0;
+  return words.map((w, i) => {
+    if (w.p) return `<span class="w w-p" data-wi="${i}">${escapeHTML(w.t)}</span>`;
+    const ci = color++;
+    const m = w.m || {};
+    const slash = Array.isArray(m.slash) ? m.slash : [];
+    const letters = [...w.t].map((ch, off) =>
+      `<span class="en-ltr${slash.includes(off) ? ' slashed' : ''}">${escapeHTML(ch)}</span>`).join('');
+    const cls = ['w', 'en-word', `c${ci % 4}`];
+    if (m.hl) cls.push(`hl-${m.hl}`);
+    if (m.box) cls.push('mk-box');
+    if (m.link) cls.push('mk-link');
+    if (m.brk) cls.push('mk-brk');
+    const note = m.note ? `<span class="en-note">${escapeHTML(m.note)}</span>` : '';
+    const arc = m.link ? '<span class="liaison-arc" aria-hidden="true">⌒</span>' : '';
+    const brk = m.brk ? '<span class="en-brk">/</span>' : '';
+    if (!inline) {
+      return `<span class="${cls.join(' ')}" data-wi="${i}">${letters}${note}</span>${arc}${brk}`;
+    }
+    const wipa = dict ? (lookupIPA(w.t, dict) || '') : '';
+    return `<span class="${cls.join(' ')}" data-wi="${i}">`
+      + `<span class="w-jp">${letters}${note}</span><span class="w-ro">${escapeHTML(wipa)}</span></span>${arc}${brk}`;
+  }).join('');
+}
+
+/** 英语 .ro 区域：整行 IPA 音标（词典未就绪时留空，加载后重渲染）。 */
+function englishIpaHTML(line) {
+  const dict = getCMUDict();
+  if (!dict) return '';
+  const ipa = lineIPA(getWords(line), dict);
+  return ipa ? `<span class="ipa-line">${escapeHTML(ipa)}</span>` : '';
+}
+
 /** .jp 区域 HTML */
 export function jpHTML(line, { inline = false } = {}) {
+  if (isEnglish()) return englishJpHTML(line, { inline });
   const script = state.settings.kanaScript || 'hiragana';
   if (!Array.isArray(line.words) || !line.words.length) {
     return `<span class="w pending">${escapeHTML(line.text)}</span>`;
@@ -60,6 +103,7 @@ export function jpHTML(line, { inline = false } = {}) {
 
 /** .ro 区域 HTML（逐词 span，与 .jp 的 data-wi 对应，悬停互相高亮） */
 export function romajiHTML(line) {
+  if (isEnglish()) return englishIpaHTML(line);
   if (line.romaji) return `<span class="ro-override">${escapeHTML(line.romaji)}</span>`;
   if (!Array.isArray(line.words)) return '';
   let color = 0;
@@ -79,6 +123,7 @@ export function renderLineContent(line) {
   if (!el) return;
   const inline = state.settings.layout === 'inline';
   const jp = el.querySelector('.jp');
+  jp.lang = isEnglish() ? 'en' : 'ja';
   jp.innerHTML = jpHTML(line, { inline });
   jp._karaoke = null;
   const ro = el.querySelector('.ro');
@@ -88,7 +133,7 @@ export function renderLineContent(line) {
   el.querySelector('.zh').textContent = line.zh || '';
   el.classList.toggle('long', [...(line.text || '')].length >= (state.settings.longLineChars || 14));
   el.classList.toggle('edited', !!(line.wordsEdited || line.romaji));
-  el.classList.toggle('analyzing', !Array.isArray(line.words));
+  el.classList.toggle('analyzing', !Array.isArray(getWords(line)));
 }
 
 function lineElement(line, idx) {
@@ -167,6 +212,7 @@ function emptyCard(kind) {
 export function applyDisplayClasses() {
   const s = state.settings;
   const b = document.body;
+  b.classList.toggle('lang-en', s.songLang === 'en');
   b.classList.toggle('hide-furigana', !s.showFurigana);
   b.classList.toggle('hide-romaji', !s.showRomaji);
   b.classList.toggle('hide-zh', !s.showZh);

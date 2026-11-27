@@ -3,6 +3,7 @@ import { $, $$, fmtTime, toast, bus, setStatus, debounce } from './util.js';
 import { state } from './state.js';
 import { api } from './api.js';
 import { renderLineContent } from './render.js';
+import { getWords, isEnglish } from './english.js';
 import { lineStart, segmentRange, karaokeProgress, weightedChars, findActiveLineIdx, LINE_PREROLL } from './timing.js';
 
 export const RATES = [0.5, 0.6, 0.75, 0.85, 1, 1.25, 1.5];
@@ -258,12 +259,14 @@ function applySung(k, n) {
 function updateKaraoke(line, t) {
   if (!line._el || state.settings.viewMode === 'read' && !isPlaying()) return;
   const jp = line._el.querySelector('.jp');
-  if (!Array.isArray(line.words)) return;
+  const words = getWords(line);
+  if (!Array.isArray(words)) return;
+  const en = isEnglish();
   const lines = state.song.lines;
-  const kj = buildKaraoke(jp, 'rt, .w-ro');
+  const kj = buildKaraoke(jp, 'rt, .w-ro, .en-note, .liaison-arc, .en-brk');
   const { p, weighted } = karaokeProgress(lines, lines.indexOf(line), t);
-  // 无逐字时间轴时按音拍加权（汉字按读音拍数），有逐字时间轴时按字
-  applySung(kj, weighted ? weightedChars(line, p, kj.chars.length) : p * kj.chars.length);
+  // 无逐字时间轴时按音拍加权（汉字按读音拍数），有逐字时间轴时按字；英语按字符均匀推进
+  applySung(kj, (!en && weighted) ? weightedChars(line, p, kj.chars.length) : p * kj.chars.length);
   const ro = line._el.querySelector('.ro');
   if (ro && ro.textContent.trim()) {
     const kr = buildKaraoke(ro, '.ro-brk, .ro-link');

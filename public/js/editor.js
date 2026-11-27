@@ -13,6 +13,7 @@ import { splitReading, wordKanaToRomaji, wordRomajiToKana, toHiragana, toKatakan
 import { attachRomajiIME } from './ime.js';
 import { lyricTime, playLine } from './player.js';
 import { lineStart } from './timing.js';
+import { getWords, isEnglish, marksFromWords } from './english.js';
 
 const HL_COLORS = [
   { key: 'y', label: '黄' }, { key: 'g', label: '绿' }, { key: 'b', label: '蓝' },
@@ -111,6 +112,16 @@ export async function saveLine(line, fields, { kind = 'edit', note = '', applySa
 // =============================================================== 单词选中 & 工具条
 const sel = { lineId: null, a: -1, b: -1 };
 
+// 当前语言下选中行的单词数组 / 选中词（日语=line.words，英语=派生 enWords）
+function selWords() {
+  const line = lineById(sel.lineId);
+  return line ? getWords(line) : null;
+}
+function selWord() {
+  const words = selWords();
+  return words ? words[sel.a] : null;
+}
+
 function clearSelection() {
   sel.lineId = null;
   sel.a = sel.b = -1;
@@ -128,26 +139,41 @@ function paintSelection() {
   positionToolbar(line);
 }
 
+// 只重绘选中态，不收起工具条里的字母选择行（划掉字母时连续点选）
+function repaintSelected() {
+  $$('.w.selected, .rw.selected').forEach(el => el.classList.remove('selected'));
+  const line = lineById(sel.lineId);
+  if (!line?._el) return;
+  for (let i = sel.a; i <= sel.b; i++) {
+    line._el.querySelectorAll(`[data-wi="${i}"]`).forEach(el => el.classList.add('selected'));
+  }
+}
+
 function positionToolbar(line) {
   // 工具条固定停靠在播放条上方（不遮挡被选中的词和相邻行）
   const tb = $('#word-toolbar');
   if (!line._el.querySelector(`.jp [data-wi="${sel.a}"]`)) { tb.hidden = true; return; }
   tb.hidden = false;
+  const words = getWords(line);
   const count = sel.b - sel.a + 1;
   $('#wt-merge').disabled = count < 2;
-  $('#wt-info').textContent = count > 1 ? `已选 ${count} 个词（Shift+点击扩展）` : `「${line.words[sel.a]?.t || ''}」`;
-  const m = line.words[sel.a]?.m || {};
+  $('#wt-info').textContent = count > 1 ? `已选 ${count} 个词（Shift+点击扩展）` : `「${words[sel.a]?.t || ''}」`;
+  const m = words[sel.a]?.m || {};
   $$('#word-toolbar [data-hl]').forEach(b => b.classList.toggle('active', m.hl === b.dataset.hl));
   $('#wt-box').classList.toggle('active', !!m.box);
   $('#wt-link').classList.toggle('active', !!m.link);
   $('#wt-brk').classList.toggle('active', !!m.brk);
+  const slashBtn = $('#wt-slash');
+  if (slashBtn) slashBtn.classList.toggle('active', Array.isArray(m.slash) && m.slash.length > 0);
   $('#wt-note-row').hidden = true;
+  const slashRow = $('#wt-slash-row');
+  if (slashRow) slashRow.hidden = true;
 }
 
 function onWordClick(ev, wordEl) {
   const lineEl = wordEl.closest('.line');
   const line = lineById(lineEl?.dataset.id);
-  if (!line || !Array.isArray(line.words)) return;
+  if (!line || !Array.isArray(getWords(line))) return;
   const wi = Number(wordEl.dataset.wi);
   if (ev.shiftKey && sel.lineId === line.id) {
     sel.a = Math.min(sel.a, wi);
@@ -165,11 +191,16 @@ function onWordClick(ev, wordEl) {
 async function applyToSelection(mutator, kind, note) {
   const line = lineById(sel.lineId);
   if (!line) return;
-  const words = clone(line.words);
+  const words = clone(getWords(line));
   const res = mutator(words);
   const next = res instanceof Promise ? await res : res;
   try {
-    await saveLine(line, { words: next, wordsEdited: true }, { kind, note });
+    if (isEnglish()) {
+      // 英语标记单独持久化到 enMarks（按词序号），不改动日语 words
+      await saveLine(line, { enMarks: marksFromWords(next) }, { kind, note });
+    } else {
+      await saveLine(line, { words: next, wordsEdited: true }, { kind, note });
+    }
   } catch (e) {
     toast('保存失败：' + e.message, { error: true });
     return;
@@ -205,20 +236,19 @@ function initToolbar() {
     if (line) openLineEditor(line, { focusWord: wi });
   });
   $$('#word-toolbar [data-hl]').forEach(btn => btn.addEventListener('click', async () => {
-    const line = lineById(sel.lineId);
-    const cur = line?.words?.[sel.a]?.m?.hl;
+    const cur = selWord()?.m?.hl;
     const val = cur === btn.dataset.hl ? null : btn.dataset.hl;
     await applyToSelection(words => setMark(words, 'hl', val), 'mark', val ? '高亮' : '取消高亮');
     paintSelection();
   }));
   const toggle = (key, label) => async () => {
-    const line = lineById(sel.lineId);
-    const cur = !!line?.words?.[sel.a]?.m?.[key];
-    await applyToSelection(words => setMark(words, key, !cur), 'mark', (cur ? '取消' : '') + label);
+    const cur = !!selWord()?.m?.[key];
+    const lbl = typeof label === 'function' ? label() : label;
+    await applyToSelection(words => setMark(words, key, !cur), 'mark', (cur ? '取消' : '') + lbl);
     paintSelection();
   };
   $('#wt-box').addEventListener('click', toggle('box', '边框'));
-  $('#wt-link').addEventListener('click', toggle('link', '连读'));
+  $('#wt-link').addEventListener('click', toggle('link', () => (isEnglish() ? '连音' : '连读')));
   $('#wt-brk').addEventListener('click', toggle('brk', '停顿'));
   $('#wt-clear').addEventListener('click', async () => {
     await applyToSelection(words => {
@@ -228,10 +258,11 @@ function initToolbar() {
     paintSelection();
   });
   $('#wt-note').addEventListener('click', () => {
-    const line = lineById(sel.lineId);
     $('#wt-note-row').hidden = false;
+    const slashRow = $('#wt-slash-row');
+    if (slashRow) slashRow.hidden = true;
     const input = $('#wt-note-input');
-    input.value = line?.words?.[sel.a]?.m?.note || '';
+    input.value = selWord()?.m?.note || '';
     input.focus();
   });
   const saveNote = async () => {
@@ -241,10 +272,42 @@ function initToolbar() {
   };
   $('#wt-note-save').addEventListener('click', saveNote);
   $('#wt-note-input').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); saveNote(); } });
+  const slashBtn = $('#wt-slash');
+  if (slashBtn) slashBtn.addEventListener('click', () => {
+    const row = $('#wt-slash-row');
+    const chips = $('#wt-slash-chips');
+    const w = selWord();
+    if (!row || !chips || !w || w.p) return;
+    if (!row.hidden) { row.hidden = true; return; }
+    $('#wt-note-row').hidden = true;
+    chips.replaceChildren();
+    const slash = Array.isArray(w.m?.slash) ? w.m.slash : [];
+    [...w.t].forEach((ch, off) => {
+      const chip = h('button', { type: 'button', class: 'slash-chip' + (slash.includes(off) ? ' on' : ''), text: ch, dataset: { off: String(off) } });
+      chip.addEventListener('click', async () => {
+        await applyToSelection(words => {
+          const target = words[sel.a];
+          if (!target || target.p) return words;
+          const mm = { ...(target.m || {}) };
+          const arr = Array.isArray(mm.slash) ? [...mm.slash] : [];
+          const idx = arr.indexOf(off);
+          if (idx >= 0) arr.splice(idx, 1); else arr.push(off);
+          if (arr.length) mm.slash = arr.sort((x, y) => x - y); else delete mm.slash;
+          if (Object.keys(mm).length) target.m = mm; else delete target.m;
+          return words;
+        }, 'mark', '划掉字母');
+        const cur = selWord()?.m?.slash || [];
+        chips.querySelectorAll('.slash-chip').forEach(c => c.classList.toggle('on', cur.includes(Number(c.dataset.off))));
+        slashBtn.classList.toggle('active', cur.length > 0);
+        repaintSelected();
+      });
+      chips.append(chip);
+    });
+    row.hidden = false;
+  });
   $$('#word-toolbar [data-tone]').forEach(btn => btn.addEventListener('click', async () => {
-    const line = lineById(sel.lineId);
     const t = Number(btn.dataset.tone);
-    const cur = line?.words?.[sel.a]?.m?.tone;
+    const cur = selWord()?.m?.tone;
     await applyToSelection(words => setMark(words, 'tone', cur === t ? null : t), 'mark', '声调');
     paintSelection();
   }));
@@ -256,6 +319,20 @@ function initToolbar() {
   });
   $('#wt-close').addEventListener('click', clearSelection);
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !tb.hidden) clearSelection(); });
+  syncLangToolbar();
+  bus.on('lang:changed', () => { clearSelection(); syncLangToolbar(); });
+}
+
+// 工具条随语言切换：英语显示「划掉」、连读改称「连音」、隐藏日语专属控件
+function syncLangToolbar() {
+  const en = isEnglish();
+  const slash = $('#wt-slash');
+  if (slash) slash.hidden = !en;
+  $('#wt-link').textContent = en ? '连音' : '连读';
+  $('#wt-link').title = en ? '与下一个词连音（上方红色 ⌒）' : '与下一个词连读（罗马音用 ‿ 连接）';
+  $('#wt-edit').textContent = en ? '✎ 编辑…' : '✎ 读音…';
+  $('#wt-info').lang = en ? 'en' : 'ja';
+  if (!en) { const row = $('#wt-slash-row'); if (row) row.hidden = true; }
 }
 
 export function setEditing(on) {
@@ -264,7 +341,9 @@ export function setEditing(on) {
   $('#btn-edit-mode').classList.toggle('active', on);
   $('#btn-edit-mode').setAttribute('aria-pressed', String(on));
   if (!on) clearSelection();
-  else toast('编辑模式：点击单词选中，Shift+点击多选；点「✎」编辑整行', { ms: 2600 });
+  else toast(isEnglish()
+    ? '编辑模式：点击单词选中，可划掉字母 / 连音 / 备注；点「✎」编辑整行'
+    : '编辑模式：点击单词选中，Shift+点击多选；点「✎」编辑整行', { ms: 2600 });
 }
 
 // =============================================================== 行编辑器
@@ -273,6 +352,10 @@ const ed = { line: null, draft: null, origWords: null, textDirty: false, busy: f
 export function openLineEditor(line, { focusWord = -1 } = {}) {
   ed.line = line;
   ed.textDirty = false;
+  const en = isEnglish();
+  $('#dlg-line').classList.toggle('en-mode', en);
+  $('#le-text').lang = en ? 'en' : 'ja';
+  $('#le-text-label').textContent = en ? '原文（英语）' : '原文（日语）';
   ed.draft = {
     text: line.text,
     time: line.time,
@@ -307,9 +390,7 @@ export function openLineEditor(line, { focusWord = -1 } = {}) {
 }
 
 function renderEditor() {
-  renderChars();
-  renderWordRows();
-  renderRomajiBox();
+  if (!isEnglish()) { renderChars(); renderWordRows(); renderRomajiBox(); }
   $('#le-stale').hidden = !ed.textDirty;
   $('#le-seg').classList.toggle('stale', ed.textDirty);
 }
@@ -490,6 +571,31 @@ async function saveEditor() {
   if (!line) return;
   const text = $('#le-text').value.trim();
   if (!text) { toast('原文不能为空', { error: true }); return; }
+  if (isEnglish()) {
+    // 英语行只编辑时间 / 原文 / 中文；改原文时清空按词序号存的英语标记
+    const fields = {};
+    const t = parseTime($('#le-time').value);
+    const curStart = lineStart(line);
+    if (Number.isFinite(t) && Math.abs(t - curStart) > 0.0005) {
+      const delta = t - curStart;
+      fields.time = Math.max(0, Math.round((line.time + delta) * 1000) / 1000);
+      if (line.wordTiming?.length) {
+        const ms = Math.round(delta * 1000);
+        fields.wordTiming = line.wordTiming.map(w => ({ ...w, starttime: w.starttime + ms, endtime: w.endtime + ms }));
+      }
+    }
+    if (text !== line.text) { fields.text = text; fields.enMarks = null; }
+    const zh = $('#le-zh').value.trim();
+    if (zh !== (line.zh || '')) fields.zh = zh;
+    if (!Object.keys(fields).length) { $('#dlg-line').close(); return; }
+    try {
+      await saveLine(line, fields, { kind: 'edit', applySame: $('#le-same').checked && !fields.text });
+      $('#dlg-line').close();
+    } catch (e) {
+      toast('保存失败：' + e.message, { error: true });
+    }
+    return;
+  }
   if (text !== line.text && (ed.textDirty || !wordsMatchText(ed.draft.words, text))) {
     await reanalyzeDraft();
   }

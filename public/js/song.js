@@ -2,10 +2,12 @@
 import { $, toast, bus, setStatus, sleep, normText } from './util.js';
 import { state } from './state.js';
 import { api } from './api.js';
-import { renderSong, renderLineContent } from './render.js';
+import { renderSong, renderLineContent, rerenderAllLines } from './render.js';
 import { analyzeText, ensureTokenizer, wordsMatchText, fallbackWords, rubyPlainText } from './analyzer.js';
 import { loadSongAudio, lyricTime, seekLyric, syncHighlight } from './player.js';
 import { isCoarseTiming } from './timing.js';
+import { isEnglish } from './english.js';
+import { loadCMUDict } from './ipa.js';
 
 let analysisGen = 0;
 
@@ -58,6 +60,21 @@ export function updateSongHeader() {
 export async function analyzeSong({ onlyUnedited = false, force = false } = {}) {
   const song = state.song;
   if (!song?.lines?.length) return;
+  // 英语模式：跳过日语分词器，懒加载发音词典后重渲染（IPA 行）。
+  if (isEnglish()) {
+    const gen = ++analysisGen;
+    setStatus('正在加载英语发音词典…');
+    try {
+      await loadCMUDict();
+    } catch (e) {
+      setStatus('发音词典加载失败：' + e.message + '（歌词仍可显示，刷新重试）', { error: true });
+    }
+    if (gen !== analysisGen || state.song !== song) return;
+    rerenderAllLines();
+    setStatus(`已就绪 · ${song.lines.length} 行`);
+    syncHighlight();
+    return;
+  }
   const gen = ++analysisGen;
   const todo = song.lines.filter(ln => {
     if (force || onlyUnedited) return !ln.wordsEdited;
@@ -160,7 +177,7 @@ export async function applyMarumaru(item, { quiet = false } = {}) {
 export async function autoEnrich(song = state.song, { marumaru = true, timing = true } = {}) {
   if (!song?.lines?.length) return;
   const tasks = [];
-  if (marumaru) {
+  if (marumaru && !isEnglish()) {
     tasks.push((async () => {
       const cands = await marumaruCandidates(song);
       if (cands.length && state.song === song) await applyMarumaru(cands[0], { quiet: true });
@@ -262,7 +279,7 @@ export async function fetchWordTiming(song = state.song, { quiet = false } = {})
   } catch (e) {
     notes.push('网易云：' + e.message);
   }
-  if (!results.some(r => r.ratio >= 0.7)) {
+  if (!isEnglish() && !results.some(r => r.ratio >= 0.7)) {
     if (!quiet) setStatus('正在从 PetitLyrics 查找逐字时间轴…');
     try {
       const res = await api.online.petit(song.title || '', song.artist || '');
@@ -330,7 +347,7 @@ export async function translateMissing() {
   for (let i = 0; i < todo.length; i += 10) {
     const chunk = todo.slice(i, i + 10);
     try {
-      const res = await api.online.translate(chunk.map(l => l.text));
+      const res = await api.online.translate(chunk.map(l => l.text), { from: isEnglish() ? 'en' : 'ja' });
       chunk.forEach((ln, j) => {
         const zh = res.results?.[j] || '';
         if (zh) { ln.zh = zh; renderLineContent(ln); patches.push({ id: ln.id, zh }); }

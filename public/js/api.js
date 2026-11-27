@@ -13,6 +13,7 @@ const DB_NAME = 'jp-lyrics-studio';
 const DB_VERSION = 1;
 
 const DEFAULT_SETTINGS = {
+  songLang: 'ja',          // ja | en（歌曲语言：日语走假名/罗马音，英语走 IPA + 英语标记）
   theme: 'auto',            // auto | light | dark | mint | sand | sakura | sky | lavender
   viewMode: 'sing',         // sing（跟唱，高亮当前句并居中） | read（阅读平铺）
   layout: 'stack',          // stack（原文/罗马音/中文分行） | inline（逐词对照）
@@ -39,7 +40,7 @@ const DEFAULT_SETTINGS = {
 };
 
 const SONG_FIELDS = new Set(['title', 'artist', 'album', 'offset', 'timeline', 'duration', 'syncInfo']);
-const LINE_FIELDS = new Set(['time', 'end', 'text', 'zh', 'words', 'wordsEdited', 'romaji', 'ruby', 'wordTiming']);
+const LINE_FIELDS = new Set(['time', 'end', 'text', 'zh', 'words', 'wordsEdited', 'romaji', 'ruby', 'wordTiming', 'enMarks']);
 
 const EXT_MIME = {
   mp3: 'audio/mpeg', m4a: 'audio/mp4', mp4: 'audio/mp4', aac: 'audio/aac',
@@ -1252,7 +1253,8 @@ async function petit(title, artist = '') {
 }
 
 // =============================================================== MyMemory 日→中机器翻译
-async function translate(texts) {
+async function translate(texts, { from = 'ja' } = {}) {
+  const langpair = (from === 'en' ? 'en' : 'ja') + '|zh-CN';
   const list = (texts || []).map((t) => String(t)).slice(0, 200);
   const out = [];
   for (const t of list) {
@@ -1265,7 +1267,7 @@ async function translate(texts) {
     const timer = setTimeout(() => ctrl.abort(), 12000);
     try {
       const r = await fetch(
-        `https://api.mymemory.translated.net/get?q=${encodeURIComponent(t)}&langpair=ja|zh-CN`,
+        `https://api.mymemory.translated.net/get?q=${encodeURIComponent(t)}&langpair=${langpair}`,
         { signal: ctrl.signal },
       );
       const data = r.ok ? await r.json() : null;

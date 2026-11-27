@@ -15,6 +15,7 @@
 | 播放 | 本地音频 / 计时器（配合外部播放器）两种音源；全局倍速 0.5–1.5×（变速保持音高，可关）；歌词偏移 ±0.1s 微调与一键「对齐」（A）；单句播放 / 单句循环（起止按逐字时间或音拍估算，不会切进下一句）；上/下一句；逐字 KTV 进度（无逐字数据时按音拍加权）；跟唱模式自动居中 |
 | 打轴 | 纯文本歌词边听边按 `T` 给每句打时间，完成后时间轴变为「同步」 |
 | 分词显示 | kuromoji 分词后按「文节」组合成单词（`風に`、`触った`、`中で`）；单词样式：边框 / 交替底色 / 下划线 / 无，可「仅长句启用」；布局：分行（原文 / 罗马音 / 中文）或逐词对照（每个词竖排：注音-汉字-罗马音）；悬停原文词 ↔ 罗马音词互相高亮 |
+| 英语模式 | 设置栏顶部「语言」切换日语 / 英语（默认日语，记忆选择）；英语歌曲自动隐藏假名 / 罗马音，改显 IPA 音标行（内置 CMUdict 发音词典，仅英语模式懒加载）；歌词标记支持划掉（词内静音字母斜杠）、连音（词间红色 ⌒）、备注（下方红色小字）；朗读改用英语语音；中文翻译走 en→zh |
 | 编辑 | 编辑模式（E）：点选单词，Shift 多选 → 合并 / 拆分 / 5 色高亮 / 边框 / 连读 / 停顿 / 备注 / 声调；行编辑器（双击行或 ✎）：原文、时间、字间切分、逐词假名（平/片假名）、逐词罗马音、整行罗马音覆盖、中文；全文编辑（LRC）；编辑可同步到本曲相同歌词（副歌） |
 | 持久化 | 所有修改保存在浏览器本地（IndexedDB）；修改历史可逐条撤销（同一次操作同步的多行作为一组撤销；全文编辑前自动快照）；我的词典：自定义词与读音，自动分词时整体识别，对所有歌曲生效 |
 | 其它 | 学习模式（任意日语句子分词注音 + 朗读，多音色 TTS）；导出 TXT（原文/分词/假名/罗马音/中文任意组合）与 LRC；主题下拉选择（浅色/深色/跟随系统 + 薄荷绿/暖沙/樱花粉/天蓝/薰衣草）；播放条可收起；字号缩放；移动端适配；快捷键 |
@@ -224,6 +225,7 @@ NCM 算法参考 [ncmdump-js](https://github.com/ant-cave/ncmdump-js/tree/aa127b
 - 免费翻译和 TTS 接口可能受网络、跨域、频率限制影响；应用会按中国区接口、VOICEVOX、浏览器日语语音顺序兜底。
 - Marumaru 代理依赖 marumaru-x.com 的页面结构，站点改版时需要更新解析逻辑。
 - 自动注音和罗马音无法保证所有专有名词、歌词特殊读法都完全准确，可用「我的词典」与行编辑器修正。
+- 英语音标取自 CMUdict 的孤立词读音，不自动处理连读 / 弱读（如 to→/tə/），可用「备注」手动标注；未收录词回退为原词。
 - Web Speech 回退朗读依赖系统/浏览器是否安装 Japanese / ja-JP 语音。
 
 ## 致谢与许可
@@ -231,5 +233,6 @@ NCM 算法参考 [ncmdump-js](https://github.com/ant-cave/ncmdump-js/tree/aa127b
 - **界面与功能**：整体移植自 [WaterEmissary/jp-lyrics-studio](https://github.com/WaterEmissary/jp-lyrics-studio)（基于本项目重构的衍生版，作者间已沟通授权）。衍生项目本身无 LICENSE 文件，移植时保留其功能与界面设计并在此注明来源。
 - **分词**：[kuromoji.js](https://github.com/takuyaa/kuromoji.js)（Apache-2.0，含 IPADIC 词典）。
 - **注音 / 罗马音**：[kuroshiro](https://github.com/hexenq/kuroshiro) 及 kuroshiro-analyzer-kuromoji（MIT）。
+- **英语音标**：[CMUdict](https://github.com/cmusphinx/cmudict)（CMU 发音词典，公有领域 / public domain），经 `scripts/build-cmudict.mjs` 压缩为 `public/dict/cmudict.gz`，ARPAbet→IPA 转换见 `public/js/ipa.js`。
 - **NCM 还原**：算法参考 [ncmdump-js](https://github.com/ant-cave/ncmdump-js)，AES 实现使用 [aes-js 3.1.2](https://github.com/ricmoo/aes-js/tree/v3.1.2)，均为 MIT；完整版权和许可文本见 `public/lib/NCM-LICENSES.txt`。
 - **歌词 / 翻译 / TTS 服务**：LRCLIB、PetitLyrics、marumaru-x.com、MyMemory、百度 / 有道 / VOICEVOX / Google TTS，见上文「第三方服务一览」。
