@@ -8,6 +8,7 @@ import { readTextFile } from './editor.js';
 import { cloudAudioReady, cacheSongAudio, cacheAllAudio, removeSongAudioCache } from './cloud.js';
 
 const SOURCE_LABEL = { local: '本地', netease: '网易云', lrclib: 'LRCLIB', marumaru: 'Marumaru' };
+const LANG_LABEL = { ja: '日语', en: '英语', ko: '韩语' };
 
 export async function refreshLibrary() {
   try {
@@ -23,17 +24,20 @@ export async function refreshLibrary() {
 function renderLibrary() {
   if (drag) return; // 拖动中不重建列表
   const q = $('#lib-filter').value.trim().toLowerCase();
+  const lang = $('#lib-lang')?.value || '';
   const list = $('#lib-list');
-  const items = state.songs.filter(s => !q || `${s.title} ${s.artist} ${s.album}`.toLowerCase().includes(q));
+  const items = state.songs.filter(s => (!q || `${s.title} ${s.artist} ${s.album}`.toLowerCase().includes(q))
+    && (!lang || s.lang === lang));
   $('#lib-count').textContent = String(state.songs.length);
   renderCacheSummary();
-  list.classList.toggle('filtering', !!q);
+  list.classList.toggle('filtering', !!(q || lang));
   if (!items.length) {
     list.replaceChildren(h('div', { class: 'lib-empty muted', text: state.songs.length ? '没有匹配的歌曲' : '曲库为空。导入本地歌曲或联网搜索歌词后会保存在这里。' }));
     return;
   }
   list.replaceChildren(...items.map(s => {
     const badges = [];
+    if (s.lang) badges.push(`<span class="badge lang" title="语种：${LANG_LABEL[s.lang] || s.lang}">${LANG_LABEL[s.lang] || s.lang}</span>`);
     if (s.hasAudio) badges.push('<span class="badge ok" title="已上传音频">♪ 音频</span>');
     if (s.timeline === 'synced') badges.push('<span class="badge" title="有同步时间轴">同步</span>');
     else if (s.timeline === 'synthetic') badges.push('<span class="badge warn" title="纯文本歌词，时间为估算，可打轴">估算</span>');
@@ -54,7 +58,7 @@ function renderLibrary() {
     });
     const cw = cacheWidget(s);
     if (cw) item.querySelector('.lib-info').append(cw);
-    const handle = h('span', { class: 'drag-handle', title: q ? '筛选时不能排序' : '拖动排序（登录云同步后所有设备一致）', 'aria-label': '拖动排序', html: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>' });
+    const handle = h('span', { class: 'drag-handle', title: (q || lang) ? '筛选时不能排序' : '拖动排序（登录云同步后所有设备一致）', 'aria-label': '拖动排序', html: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>' });
     item.prepend(handle);
     const open = async () => {
       await openSong(s.id);
@@ -161,7 +165,7 @@ function renderCacheSummary() {
 let drag = null;
 
 function startDrag(e, item) {
-  if ($('#lib-filter').value.trim()) { toast('请先清空筛选再拖动排序'); return; }
+  if ($('#lib-filter').value.trim() || ($('#lib-lang')?.value || '')) { toast('请先清空筛选再拖动排序'); return; }
   e.preventDefault();
   const list = $('#lib-list');
   const rect = item.getBoundingClientRect();
@@ -528,6 +532,7 @@ async function replaceAudio(file) {
 
 export function initLibrary() {
   $('#lib-filter').addEventListener('input', renderLibrary);
+  $('#lib-lang').addEventListener('change', renderLibrary);
   $('#btn-sidebar').addEventListener('click', () => toggleSidebar());
   $('#sidebar-scrim').addEventListener('click', () => toggleSidebar(false));
   $$('[data-cmd="import"]').forEach(b => b.addEventListener('click', () => openImport([], { pick: true })));

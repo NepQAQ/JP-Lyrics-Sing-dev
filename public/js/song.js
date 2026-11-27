@@ -2,14 +2,32 @@
 import { $, toast, bus, setStatus, sleep, normText } from './util.js';
 import { state } from './state.js';
 import { api } from './api.js';
-import { renderSong, renderLineContent, rerenderAllLines } from './render.js';
+import { renderSong, renderLineContent, rerenderAllLines, applyDisplayClasses } from './render.js';
 import { analyzeText, ensureTokenizer, wordsMatchText, fallbackWords, rubyPlainText } from './analyzer.js';
 import { loadSongAudio, lyricTime, seekLyric, syncHighlight } from './player.js';
 import { isCoarseTiming } from './timing.js';
 import { isEnglish, isKorean, isWordMarks } from './english.js';
 import { loadCMUDict } from './ipa.js';
+import { detectLyricLang } from './langdetect.js';
 
 let analysisGen = 0;
+
+/** 语种随歌曲恢复：存了 lang 就切到该语种；旧歌没存的按歌词自动识别一次并回写（不动全局设置）。 */
+function applySongLang(song) {
+  let lang = song.lang || null;
+  if (!lang) {
+    lang = detectLyricLang(song.lines);
+    if (lang) {
+      song.lang = lang;
+      api.patchSong(song.id, { lang }).catch(() => {});
+    }
+  }
+  if (lang && lang !== state.settings.songLang) {
+    state.settings.songLang = lang; // 只切内存（随歌曲），不写回全局默认
+    applyDisplayClasses();
+    bus.emit('lang:changed', { lang, fromSong: true });
+  }
+}
 
 export async function openSong(id, { keepPosition = false } = {}) {
   const pos = keepPosition ? lyricTime() : 0;
@@ -22,6 +40,7 @@ export async function openSong(id, { keepPosition = false } = {}) {
   }
   const sameSong = state.song?.id === song.id;
   state.song = song;
+  applySongLang(song);
   try { localStorage.setItem('jls-last-song', song.id); } catch {}
   renderSong();
   updateSongHeader();

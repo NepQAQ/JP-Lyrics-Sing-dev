@@ -122,8 +122,16 @@
     </div>
   </div>
   <div class="set-group">
-    <div class="set-label">字号</div>
-    <input type="range" min="0.8" max="1.6" step="0.05" data-set="fontScale" />
+    <div class="set-label">字号 <span class="muted small">各行可独立调整</span></div>
+    <div class="fs-row"><span class="fs-name">全局</span><input type="range" min="0.8" max="1.6" step="0.05" data-set="fontScale" /></div>
+    <div class="fs-row" data-lang="ja"><span class="fs-name">假名注音</span><input type="range" min="0.6" max="1.8" step="0.05" data-set="fontKa" /></div>
+    <div class="fs-row" data-lang="ja"><span class="fs-name">日语原文</span><input type="range" min="0.6" max="1.8" step="0.05" data-set="fontJp" /></div>
+    <div class="fs-row" data-lang="ja"><span class="fs-name">罗马音</span><input type="range" min="0.6" max="1.8" step="0.05" data-set="fontRo" /></div>
+    <div class="fs-row" data-lang="en"><span class="fs-name">英语原文</span><input type="range" min="0.6" max="1.8" step="0.05" data-set="fontEnJp" /></div>
+    <div class="fs-row" data-lang="en"><span class="fs-name">英语音标</span><input type="range" min="0.6" max="1.8" step="0.05" data-set="fontEnIpa" /></div>
+    <div class="fs-row" data-lang="ko"><span class="fs-name">韩语原文</span><input type="range" min="0.6" max="1.8" step="0.05" data-set="fontKoJp" /></div>
+    <div class="fs-row" data-lang="ko"><span class="fs-name">韩语罗马字</span><input type="range" min="0.6" max="1.8" step="0.05" data-set="fontKoRo" /></div>
+    <div class="fs-row"><span class="fs-name">中文翻译</span><input type="range" min="0.6" max="1.8" step="0.05" data-set="fontZh" /></div>
   </div>
   <div class="set-group">
     <div class="set-label">同步与单句播放</div>
@@ -185,7 +193,15 @@
       <div class="sidebar-title">曲库 <span id="lib-count" class="muted small">0</span></div>
       <button class="btn small primary" type="button" data-cmd="import">＋ 导入</button>
     </div>
-    <input id="lib-filter" class="input" type="search" placeholder="筛选歌名 / 歌手" />
+    <div class="lib-filter-row">
+      <input id="lib-filter" class="input" type="search" placeholder="筛选歌名 / 歌手" />
+      <select id="lib-lang" class="input" aria-label="按语种筛选曲库">
+        <option value="">全部语种</option>
+        <option value="ja">日语</option>
+        <option value="en">英语</option>
+        <option value="ko">韩语</option>
+      </select>
+    </div>
     <div id="lib-list" class="lib-list"></div>
     <div class="sidebar-foot">
       <div class="cache-summary">
@@ -359,25 +375,30 @@
       </div>
       <input id="le-text" class="input jp-input" lang="ja" />
     </div>
-    <div id="le-stale" class="notice" data-lang="ja" hidden>原文已修改：保存时会自动重新分词，或 <button id="le-reanalyze" type="button" class="link">立即重新分析</button></div>
+    <div id="le-stale" class="notice" hidden><span id="le-stale-text">原文已修改：保存时会自动重新分词，或 </span><button id="le-reanalyze" type="button" class="link">立即重新分析</button></div>
 
-    <div id="le-seg" class="seg-editor" data-lang="ja">
+    <div id="le-seg" class="seg-editor">
       <div class="field-label">分词 <span class="muted small">点击字与字之间的竖线：<b>实线</b> = 词的分界（点击合并），<b>虚线</b> = 词内部（点击切开）</span></div>
       <div id="le-chars" class="seg-chars" lang="ja"></div>
-      <div class="word-table-head">
+      <div class="word-table-head" data-lang="ja">
         <span>词</span><span>读音（可直接打罗马音，自动转假名）</span><span>罗马音（改了会同步读音）</span><span>高亮</span><span></span><span>声调</span><span>备注</span>
+      </div>
+      <div class="word-table-head" data-lang="wm">
+        <span>词</span><span>注音（音标 / 罗马字，可手动修改）</span><span>高亮</span><span>框</span><span>备注</span>
       </div>
       <div id="le-words" class="word-table"></div>
       <div class="row-actions">
-        <button id="le-hira" class="btn small ghost" type="button">读音全部转平假名</button>
-        <button id="le-kata" class="btn small ghost" type="button">读音全部转片假名</button>
-        <button id="le-recalc" class="btn small ghost" type="button">按读音重算罗马音</button>
+        <span data-lang="ja">
+          <button id="le-hira" class="btn small ghost" type="button">读音全部转平假名</button>
+          <button id="le-kata" class="btn small ghost" type="button">读音全部转片假名</button>
+          <button id="le-recalc" class="btn small ghost" type="button">按读音重算罗马音</button>
+        </span>
         <button class="btn small ghost" type="button" onclick="document.getElementById('le-reanalyze').click()">重新自动分词</button>
       </div>
     </div>
 
-    <div class="field" data-lang="ja">
-      <div class="field-label">整行罗马音 <span class="muted small">与上面各词双向同步；增删了词时自动变为整行覆盖</span> <label class="chk small"><input id="le-romaji-manual" type="checkbox" /> 整行覆盖</label></div>
+    <div class="field">
+      <div class="field-label"><span id="le-romaji-label">整行罗马音</span> <span class="muted small">与上面各词双向同步；增删了词时自动变为整行覆盖</span> <label class="chk small"><input id="le-romaji-manual" type="checkbox" /> 整行覆盖</label></div>
       <textarea id="le-romaji" class="input" rows="2"></textarea>
     </div>
     <label class="field"><span>中文</span><textarea id="le-zh" class="input" rows="2" lang="zh-CN"></textarea></label>

@@ -134,12 +134,18 @@ export function segmentKorean(text) {
   return words;
 }
 
-/** 韩语模式下的单词数组（含标记）。由 text 分词 + koMarks 还原，带签名缓存。 */
+/**
+ * 韩语模式下的单词数组（含标记与手动读音）。带签名缓存。
+ * 基础词表优先取持久化的 line.koWords（保存过手动分词 / 读音时），
+ * 与原文对不上（陈旧）时回退自动分词；标记由 koMarks 按词序号覆盖。
+ */
 export function koreanWords(line) {
   const marks = line.koMarks || {};
-  const sig = line.text + '|' + JSON.stringify(marks);
+  const stored = Array.isArray(line.koWords) && line.koWords.map((w) => w?.t ?? '').join('') === String(line.text ?? '')
+    ? line.koWords : null;
+  const sig = line.text + '|' + JSON.stringify(marks) + '|' + (stored ? JSON.stringify(stored) : '');
   if (line._koWords && line._koSig === sig) return line._koWords;
-  const words = segmentKorean(line.text);
+  const words = (stored || segmentKorean(line.text)).map((w) => ({ ...w }));
   for (const [i, m] of Object.entries(marks)) {
     const idx = Number(i);
     if (words[idx] && !words[idx].p && m && Object.keys(m).length) {

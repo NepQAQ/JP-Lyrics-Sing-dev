@@ -36,6 +36,8 @@ function patchSettings(patch, { rerender = false } = {}) {
   if (rerender) rerenderAllLines();
 }
 bus.on('settings:patch', (p) => patchSettings(p));
+// 打开歌曲时语种随歌曲恢复（song.js）：只同步 UI（单选钮），不改全局设置
+bus.on('lang:changed', ({ fromSong }) => { if (fromSong) syncSettingsUI(); });
 
 function syncSettingsUI() {
   const s = state.settings;
@@ -61,7 +63,21 @@ function initSettingsUI() {
       else val = el.value;
       patchSettings({ [key]: val }, { rerender: RERENDER.has(key) });
       if (key === 'preservePitch') $('#audio').preservesPitch = val;
-      if (key === 'songLang') { bus.emit('lang:changed', { lang: val }); analyzeSong(); }
+      if (key === 'songLang') {
+        bus.emit('lang:changed', { lang: val });
+        analyzeSong();
+        // 手动切换 → 保存到当前歌曲（langManual 防止换歌词时被自动识别覆盖）
+        if (state.song) {
+          state.song.lang = val;
+          state.song.langManual = true;
+          api.patchSong(state.song.id, { lang: val, langManual: true })
+            .then(() => {
+              const s = (state.songs || []).find((x) => x.id === state.song.id);
+              if (s) { s.lang = val; bus.emit('library:refresh'); }
+            })
+            .catch(() => {});
+        }
+      }
     });
   });
   $('#btn-settings').addEventListener('click', (e) => { e.stopPropagation(); togglePopover('#settings', '#btn-settings'); });

@@ -6,7 +6,7 @@
 //
 // 纯函数（segmentEnglish / marksFromWords）不依赖浏览器，可在 Node 中测试。
 import { state } from './state.js';
-import { koreanWords, isKorean } from './korean.js';
+import { koreanWords, isKorean, segmentKorean } from './korean.js';
 
 export { isKorean };
 
@@ -23,6 +23,16 @@ export function isWordMarks() {
 /** 当前语言的标记持久化字段（各语言互不干扰）。 */
 export function marksField() {
   return state.settings.songLang === 'ko' ? 'koMarks' : 'enMarks';
+}
+
+/** 当前语言的按词注音持久化字段（en: enWords / ko: koWords；存 [{t, p?, r?}]）。 */
+export function wordsField() {
+  return state.settings.songLang === 'ko' ? 'koWords' : 'enWords';
+}
+
+/** 当前语言的整行注音覆盖字段（en: enIpa / ko: koRomaji）。 */
+export function readingLineField() {
+  return state.settings.songLang === 'ko' ? 'koRomaji' : 'enIpa';
 }
 
 // 词 = 字母 / 数字 / 撇号 / 连字符的连续串；其余（空白、标点）为 p:1 占位词。
@@ -54,14 +64,18 @@ export function marksFromWords(words) {
 }
 
 /**
- * 英语模式下的单词数组（含标记）。由 text 分词 + enMarks 还原，带签名缓存。
+ * 英语模式下的单词数组（含标记与手动读音）。带签名缓存。
+ * 基础词表优先取持久化的 line.enWords（保存过手动分词 / 读音时），
+ * 与原文对不上（陈旧）时回退自动分词；标记由 enMarks 按词序号覆盖。
  * 日语模式不会调用此函数。
  */
 export function englishWords(line) {
   const marks = line.enMarks || {};
-  const sig = line.text + '|' + JSON.stringify(marks);
+  const stored = Array.isArray(line.enWords) && line.enWords.map((w) => w?.t ?? '').join('') === String(line.text ?? '')
+    ? line.enWords : null;
+  const sig = line.text + '|' + JSON.stringify(marks) + '|' + (stored ? JSON.stringify(stored) : '');
   if (line._enWords && line._enSig === sig) return line._enWords;
-  const words = segmentEnglish(line.text);
+  const words = (stored || segmentEnglish(line.text)).map((w) => ({ ...w }));
   for (const [i, m] of Object.entries(marks)) {
     const idx = Number(i);
     if (words[idx] && !words[idx].p && m && Object.keys(m).length) {
@@ -71,6 +85,43 @@ export function englishWords(line) {
   line._enWords = words;
   line._enSig = sig;
   return words;
+}
+
+/** 持久化用的纯词表：只保留 t / p / r（丢掉 m 标记与运行时缓存字段）。 */
+export function stripWmWords(words) {
+  if (!Array.isArray(words)) return null;
+  const out = [];
+  for (const w of words) {
+    if (!w || typeof w.t !== 'string') continue;
+    const nw = { t: w.t };
+    if (w.p) nw.p = 1;
+    if (typeof w.r === 'string' && w.r.trim()) nw.r = w.r.trim();
+    out.push(nw);
+  }
+  return out;
+}
+
+/** 词表结构与当前语言的自动分词是否不同（t / p / 手动读音 任一不同）。 */
+export function wmStructureChanged(words, text) {
+  const auto = isKorean() ? segmentKorean(text) : segmentEnglish(text);
+  return JSON.stringify(stripWmWords(auto)) !== JSON.stringify(stripWmWords(words));
+}
+
+/**
+ * 按字符切点把词表里的第 wi 个词拆开（cuts 为词内字符偏移）。
+ * 拆出的部分不保留原词的标记 / 读音（偏移会错位，自动读音会重算，可在行编辑器里改）。
+ */
+export function wmSplitWord(words, wi, cuts) {
+  const out = words.map((w) => ({ ...w }));
+  const w = out[wi];
+  if (!w || w.p || !Array.isArray(cuts) || !cuts.length) return out;
+  const chars = [...w.t];
+  const points = [...new Set([0, ...cuts.filter((c) => Number.isInteger(c) && c > 0 && c < chars.length), chars.length])].sort((a, b) => a - b);
+  const parts = [];
+  for (let i = 0; i + 1 < points.length; i++) parts.push(chars.slice(points[i], points[i + 1]).join(''));
+  if (parts.length < 2) return out;
+  out.splice(wi, 1, ...parts.map((t) => ({ t })));
+  return out;
 }
 
 /** 当前语言下用于渲染 / 跟唱 / 标记的单词数组。 */

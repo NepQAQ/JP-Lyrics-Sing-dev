@@ -3,9 +3,9 @@ import { $, escapeHTML, h } from './util.js';
 import { state } from './state.js';
 import { rubyHTML } from './kana.js';
 import { lineRomaji } from './analyzer.js';
-import { getWords, isEnglish, isKorean, isWordMarks } from './english.js';
-import { lineIPA, lookupIPA, getCMUDict } from './ipa.js';
-import { romanizeWord, lineRomanization } from './korean.js';
+import { getWords, isEnglish, isKorean, isWordMarks, readingLineField } from './english.js';
+import { lookupIPA, getCMUDict } from './ipa.js';
+import { romanizeWord } from './korean.js';
 
 export const ICONS = {
   play: '<svg viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/></svg>',
@@ -66,22 +66,34 @@ function englishJpHTML(line, { inline = false } = {}) {
     if (!inline) {
       return `<span class="${cls.join(' ')}" data-wi="${i}">${letters}${note}${arc}</span>${brk}`;
     }
-    const wipa = ko ? romanizeWord(w.t) : (dict ? (lookupIPA(w.t, dict) || '') : '');
+    const wipa = w.r || (ko ? romanizeWord(w.t) : (dict ? (lookupIPA(w.t, dict) || '') : ''));
     return `<span class="${cls.join(' ')}" data-wi="${i}">`
       + `<span class="w-jp">${letters}${note}</span><span class="w-ro">${escapeHTML(wipa)}</span>${arc}</span>${brk}`;
   }).join('');
 }
 
+/** 英语 / 韩语整行注音：整行手动覆盖优先（ro-override 样式，与日语整行罗马音一致），否则逐词拼接（手动读音 > 自动转换）。 */
+function wmReadingLine(line) {
+  const override = line[readingLineField()];
+  if (typeof override === 'string' && override.trim()) return { text: override.trim(), manual: true };
+  const words = getWords(line);
+  if (!Array.isArray(words)) return { text: '', manual: false };
+  const ko = isKorean();
+  const dict = ko ? null : getCMUDict();
+  const parts = [];
+  for (const w of words) {
+    if (!w || w.p || !w.t) continue;
+    const r = (typeof w.r === 'string' && w.r.trim()) || (ko ? romanizeWord(w.t) : (dict ? (lookupIPA(w.t, dict) || '') : ''));
+    if (r) parts.push(r);
+  }
+  return { text: parts.join(' '), manual: false };
+}
+
 /** 英语 .ro 区域：整行 IPA 音标（词典未就绪时留空，加载后重渲染）；韩语：整行罗马字（纯算法）。 */
 function englishIpaHTML(line) {
-  if (isKorean()) {
-    const ro = lineRomanization(getWords(line));
-    return ro ? `<span class="ipa-line">${escapeHTML(ro)}</span>` : '';
-  }
-  const dict = getCMUDict();
-  if (!dict) return '';
-  const ipa = lineIPA(getWords(line), dict);
-  return ipa ? `<span class="ipa-line">${escapeHTML(ipa)}</span>` : '';
+  const { text, manual } = wmReadingLine(line);
+  if (!text) return '';
+  return `<span class="${manual ? 'ro-override' : 'ipa-line'}">${escapeHTML(text)}</span>`;
 }
 
 /** .jp 区域 HTML */
@@ -138,7 +150,7 @@ export function renderLineContent(line) {
   ro.classList.toggle('empty', !ro.textContent.trim());
   el.querySelector('.zh').textContent = line.zh || '';
   el.classList.toggle('long', [...(line.text || '')].length >= (state.settings.longLineChars || 14));
-  el.classList.toggle('edited', !!(line.wordsEdited || line.romaji));
+  el.classList.toggle('edited', !!(line.wordsEdited || line.romaji || line.enWords || line.enIpa || line.koWords || line.koRomaji));
   el.classList.toggle('analyzing', !Array.isArray(getWords(line)));
 }
 
@@ -228,7 +240,17 @@ export function applyDisplayClasses() {
   b.classList.toggle('layout-inline', s.layout === 'inline');
   b.dataset.wordStyle = s.wordStyle || 'box';
   b.classList.toggle('ws-long-only', !!s.wordStyleLongOnly);
-  document.documentElement.style.setProperty('--font-scale', String(s.fontScale || 1));
+  const rs = document.documentElement.style;
+  rs.setProperty('--font-scale', String(s.fontScale || 1));
+  // 分行字号（各语种独立）：日语栈 / 英语栈 / 韩语栈 / 中文
+  rs.setProperty('--fs-ka', String(s.fontKa ?? 1));
+  rs.setProperty('--fs-jp', String(s.fontJp ?? 1));
+  rs.setProperty('--fs-ro', String(s.fontRo ?? 1));
+  rs.setProperty('--fs-zh', String(s.fontZh ?? 1));
+  rs.setProperty('--fs-en-jp', String(s.fontEnJp ?? 1));
+  rs.setProperty('--fs-en-ipa', String(s.fontEnIpa ?? 1));
+  rs.setProperty('--fs-ko-jp', String(s.fontKoJp ?? 1));
+  rs.setProperty('--fs-ko-ro', String(s.fontKoRo ?? 1));
   const theme = s.theme || 'auto';
   if (theme === 'auto') document.documentElement.removeAttribute('data-theme');
   else document.documentElement.setAttribute('data-theme', theme);

@@ -13,7 +13,9 @@ import { splitReading, wordKanaToRomaji, wordRomajiToKana, toHiragana, toKatakan
 import { attachRomajiIME } from './ime.js';
 import { lyricTime, playLine } from './player.js';
 import { lineStart } from './timing.js';
-import { getWords, isEnglish, isKorean, isWordMarks, marksField, marksFromWords } from './english.js';
+import { getWords, isEnglish, isKorean, isWordMarks, marksField, marksFromWords, wordsField, readingLineField, stripWmWords, wmStructureChanged, wmSplitWord, segmentEnglish } from './english.js';
+import { segmentKorean, romanizeWord } from './korean.js';
+import { lookupIPA, getCMUDict } from './ipa.js';
 
 const HL_COLORS = [
   { key: 'y', label: '黄' }, { key: 'g', label: '绿' }, { key: 'b', label: '蓝' },
@@ -188,6 +190,14 @@ function onWordClick(ev, wordEl) {
   paintSelection();
 }
 
+// 英语 / 韩语词的自动注音（词内手动读音 w.r 优先，渲染 / 整行拼接时兜底）
+function wmAutoReading(w) {
+  if (!w || w.p) return '';
+  if (isKorean()) return romanizeWord(w.t);
+  const dict = getCMUDict();
+  return dict ? (lookupIPA(w.t, dict) || '') : '';
+}
+
 async function applyToSelection(mutator, kind, note) {
   const line = lineById(sel.lineId);
   if (!line) return;
@@ -196,8 +206,14 @@ async function applyToSelection(mutator, kind, note) {
   const next = res instanceof Promise ? await res : res;
   try {
     if (isWordMarks()) {
-      // 英语 / 韩语标记单独持久化（按词序号，enMarks / koMarks 互不干扰），不改动日语 words
-      await saveLine(line, { [marksField()]: marksFromWords(next) }, { kind, note });
+      // 英语 / 韩语：标记按词序号单独持久化（enMarks / koMarks），不改动日语 words；
+      // 结构与日语 words 无关，但在本语言下做过合并 / 拆分 / 改读音时把词表也存下来
+      const fields = { [marksField()]: marksFromWords(next) };
+      const wf = wordsField();
+      const stored = Array.isArray(line[wf]) ? JSON.stringify(stripWmWords(line[wf])) : '';
+      const nextStr = JSON.stringify(stripWmWords(next));
+      if (nextStr !== stored) fields[wf] = stripWmWords(next);
+      await saveLine(line, fields, { kind, note });
     } else {
       await saveLine(line, { words: next, wordsEdited: true }, { kind, note });
     }
@@ -360,15 +376,31 @@ export function openLineEditor(line, { focusWord = -1 } = {}) {
   $('#dlg-line').classList.toggle('en-mode', wm);
   $('#le-text').lang = en ? 'en' : (isKorean() ? 'ko' : 'ja');
   $('#le-text-label').textContent = en ? '原文（英语）' : (isKorean() ? '原文（韩语）' : '原文（日语）');
-  ed.draft = {
-    text: line.text,
-    time: line.time,
-    zh: line.zh || '',
-    words: clone(line.words) || [],
-    romaji: line.romaji || '',
-    romajiManual: !!line.romaji,
-  };
-  ed.origWords = clone(line.words) || [];
+  $('#le-romaji-label').textContent = en ? '整行音标' : (isKorean() ? '整行罗马字' : '整行罗马音');
+  $('#le-stale-text').textContent = wm ? '原文已修改：保存时会重新分词并清除注音和标记，或 ' : '原文已修改：保存时会自动重新分词，或 ';
+  if (wm) {
+    // 英语 / 韩语：词表 = 该语言的单词数组（含手动读音 + 标记），整行注音取覆盖字段
+    const rf = readingLineField();
+    ed.draft = {
+      text: line.text,
+      time: line.time,
+      zh: line.zh || '',
+      words: clone(getWords(line)) || [],
+      romaji: line[rf] || '',
+      romajiManual: !!(line[rf] && String(line[rf]).trim()),
+    };
+    ed.origWords = null;
+  } else {
+    ed.draft = {
+      text: line.text,
+      time: line.time,
+      zh: line.zh || '',
+      words: clone(line.words) || [],
+      romaji: line.romaji || '',
+      romajiManual: !!line.romaji,
+    };
+    ed.origWords = clone(line.words) || [];
+  }
   const idx = state.song.lines.indexOf(line);
   $('#le-title').textContent = `编辑第 ${idx + 1} 行`;
   // 有逐字时间轴时显示第一个字的实际开始时间；修改时整体平移逐字时间
@@ -394,7 +426,9 @@ export function openLineEditor(line, { focusWord = -1 } = {}) {
 }
 
 function renderEditor() {
-  if (!isWordMarks()) { renderChars(); renderWordRows(); renderRomajiBox(); }
+  renderChars();
+  if (isWordMarks()) renderWmWordRows(); else renderWordRows();
+  renderRomajiBox();
   $('#le-stale').hidden = !ed.textDirty;
   $('#le-seg').classList.toggle('stale', ed.textDirty);
 }
@@ -483,7 +517,37 @@ function renderWordRows() {
   box.replaceChildren(...ed.draft.words.map(wordRow));
 }
 
+/** 英语 / 韩语的逐词行：词 / 注音（可改）/ 高亮 / 框 / 备注 */
+function wmWordRow(w, wi) {
+  const row = h('div', { class: `wrow wm${w.p ? ' punct' : ''}`, dataset: { wi: String(wi) } });
+  if (w.p) {
+    row.append(h('span', { class: 'wt', text: w.t === ' ' ? '␣ 空格' : w.t }), h('span', { class: 'muted small', text: '标点 / 空白' }));
+    return row;
+  }
+  const m = w.m || {};
+  const rd = h('input', { class: 'wr', value: w.r || '', placeholder: wmAutoReading(w) || '自动', 'aria-label': `${w.t} 的注音` });
+  rd.addEventListener('input', () => { w.r = rd.value.trim(); renderRomajiBox(); });
+  const hl = h('select', { class: 'whl', 'aria-label': '高亮颜色' },
+    h('option', { value: '', text: '无高亮' }),
+    ...HL_COLORS.map(c => h('option', { value: c.key, text: `${c.label}色`, selected: m.hl === c.key })));
+  hl.addEventListener('change', () => { setWordMark(w, 'hl', hl.value || null); });
+  const box = h('label', { class: 'chk small' }, h('input', { type: 'checkbox', checked: !!m.box }), '框');
+  box.querySelector('input').addEventListener('change', e => setWordMark(w, 'box', e.target.checked));
+  const note = h('input', { class: 'wnote', value: m.note || '', placeholder: '备注', maxlength: '24' });
+  note.addEventListener('input', () => setWordMark(w, 'note', note.value.trim()));
+  row.append(h('span', { class: 'wt', text: w.t }), rd, hl, box, note);
+  return row;
+}
+
+function renderWmWordRows() {
+  const box = $('#le-words');
+  box.replaceChildren(...ed.draft.words.map(wmWordRow));
+}
+
 function autoRomaji() {
+  if (isWordMarks()) {
+    return ed.draft.words.filter(w => w && !w.p).map(w => w.r || wmAutoReading(w)).filter(Boolean).join(' ');
+  }
   return ed.draft.words.filter(w => !w.p && w.r).map(w => w.r).join(' ');
 }
 
@@ -513,6 +577,19 @@ function refreshWordInputs() {
  */
 function onLineRomajiInput() {
   const tokens = $('#le-romaji').value.trim().split(/\s+/).filter(Boolean);
+  if (isWordMarks()) {
+    // 英语 / 韩语：每个词一段注音；段数对得上就逐词回填，对不上（增删了词）视为整行覆盖
+    const targets = ed.draft.words.filter(w => w && !w.p);
+    if (targets.length && tokens.length === targets.length) {
+      targets.forEach((w, i) => { if (tokens[i] !== undefined) w.r = tokens[i]; });
+      ed.draft.romajiManual = false;
+      refreshWordInputs();
+    } else {
+      ed.draft.romajiManual = true;
+    }
+    $('#le-romaji-manual').checked = ed.draft.romajiManual;
+    return;
+  }
   const targets = ed.draft.words.filter(w => !w.p && w.r);
   const counts = targets.map(w => w.r.split(/\s+/).filter(Boolean).length);
   const total = counts.reduce((a, b) => a + b, 0);
@@ -542,6 +619,9 @@ async function onCharsClick(e) {
   if (gap.dataset.join !== undefined) {
     const i = Number(gap.dataset.join);
     ed.draft.words = mergeWords(ed.draft.words, i, i + 1);
+  } else if (isWordMarks()) {
+    // 英语 / 韩语：按字符切点同步拆分（无分词器 / 读音依赖）
+    ed.draft.words = wmSplitWord(ed.draft.words, Number(gap.dataset.wi), [Number(gap.dataset.ci)]);
   } else {
     const wi = Number(gap.dataset.wi);
     const ci = Number(gap.dataset.ci);
@@ -557,6 +637,14 @@ async function onCharsClick(e) {
 
 async function reanalyzeDraft() {
   const text = $('#le-text').value;
+  if (isWordMarks()) {
+    // 英语 / 韩语：直接按当前语言重新分词；整行覆盖值保留，词内读音重置为自动
+    ed.draft.words = (isKorean() ? segmentKorean(text) : segmentEnglish(text)).map(w => ({ ...w }));
+    ed.draft.text = text;
+    ed.textDirty = false;
+    renderEditor();
+    return;
+  }
   setStatus('正在分析…');
   try {
     await ensureTokenizer();
@@ -576,7 +664,8 @@ async function saveEditor() {
   const text = $('#le-text').value.trim();
   if (!text) { toast('原文不能为空', { error: true }); return; }
   if (isWordMarks()) {
-    // 英语 / 韩语行只编辑时间 / 原文 / 中文；改原文时清空按词序号存的标记
+    // 英语 / 韩语行：时间 / 原文 / 中文 / 词表 / 标记 / 整行注音
+    const wf = wordsField(), rf = readingLineField(), mf = marksField();
     const fields = {};
     const t = parseTime($('#le-time').value);
     const curStart = lineStart(line);
@@ -588,7 +677,22 @@ async function saveEditor() {
         fields.wordTiming = line.wordTiming.map(w => ({ ...w, starttime: w.starttime + ms, endtime: w.endtime + ms }));
       }
     }
-    if (text !== line.text) { fields.text = text; fields[marksField()] = null; }
+    if (text !== line.text) {
+      // 改原文：词序号会错位，清空标记 / 词表 / 整行注音，保存时按新原文自动分词
+      fields.text = text;
+      fields[mf] = null;
+      fields[wf] = null;
+      fields[rf] = null;
+    } else {
+      const nextWords = stripWmWords(ed.draft.words);
+      const storedWords = Array.isArray(line[wf]) ? JSON.stringify(stripWmWords(line[wf])) : '';
+      if (nextWords && JSON.stringify(nextWords) !== storedWords) fields[wf] = nextWords;
+      const marks = marksFromWords(ed.draft.words);
+      if (JSON.stringify(marks) !== JSON.stringify(line[mf] || {})) fields[mf] = Object.keys(marks).length ? marks : null;
+      let override = ed.draft.romajiManual ? $('#le-romaji').value.trim() : null;
+      if (override && override.replace(/\s+/g, ' ') === autoRomaji()) override = null;
+      if ((override || null) !== (line[rf] || null)) fields[rf] = override || null;
+    }
     const zh = $('#le-zh').value.trim();
     if (zh !== (line.zh || '')) fields.zh = zh;
     if (!Object.keys(fields).length) { $('#dlg-line').close(); return; }

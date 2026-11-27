@@ -6,6 +6,7 @@
 import { cleanLine } from './state.js';
 import { sleep, downloadText, bus } from './util.js';
 import { buildVocab } from './vocab-core.js';
+import { detectLyricLang } from './langdetect.js';
 
 // =============================================================== 常量
 const SETTINGS_KEY = 'jls-settings';
@@ -28,7 +29,16 @@ const DEFAULT_SETTINGS = {
   preservePitch: true,
   applySameLines: true,     // 编辑一行时同步到本曲相同歌词行
   voice: 'cn-default',
-  fontScale: 1.0,
+  fontScale: 1.0,          // 全局字号倍率（所有行统一缩放）
+  // 分行字号（独立调整、单独持久化）：日语栈 + 英语栈 + 韩语栈 + 中文
+  fontKa: 1.0,             // 日语：假名注音（ruby 上标）
+  fontJp: 1.0,             // 日语：原文
+  fontRo: 1.0,             // 日语：罗马音
+  fontEnJp: 1.0,           // 英语：原文
+  fontEnIpa: 1.0,          // 英语：音标行
+  fontKoJp: 1.0,           // 韩语：原文
+  fontKoRo: 1.0,           // 韩语：罗马字行
+  fontZh: 1.0,             // 中文翻译（各语种共用）
   // 同步 / 单句播放
   estimateSungEnd: true,    // 无逐字时间轴时按假名音拍估算句尾
   segLead: 0.15,            // 单句播放提前开始（秒）
@@ -39,8 +49,8 @@ const DEFAULT_SETTINGS = {
   vocabNotes: {},           // 单词本笔记（按词面：{meaning, source, note, starred}；随设置云同步）
 };
 
-const SONG_FIELDS = new Set(['title', 'artist', 'album', 'offset', 'timeline', 'duration', 'syncInfo']);
-const LINE_FIELDS = new Set(['time', 'end', 'text', 'zh', 'words', 'wordsEdited', 'romaji', 'ruby', 'wordTiming', 'enMarks', 'koMarks']);
+const SONG_FIELDS = new Set(['title', 'artist', 'album', 'offset', 'timeline', 'duration', 'syncInfo', 'lang', 'langManual']);
+const LINE_FIELDS = new Set(['time', 'end', 'text', 'zh', 'words', 'wordsEdited', 'romaji', 'ruby', 'wordTiming', 'enMarks', 'koMarks', 'enWords', 'koWords', 'enIpa', 'koRomaji']);
 
 const EXT_MIME = {
   mp3: 'audio/mpeg', m4a: 'audio/mp4', mp4: 'audio/mp4', aac: 'audio/aac',
@@ -438,7 +448,7 @@ async function saveDictionary(entries, remove = []) {
 }
 
 // =============================================================== 歌曲（IndexedDB）
-function makeSongRecord({ title, artist, album, source = 'local', sourceId, lines, timeline = 'none', duration = 0 }) {
+function makeSongRecord({ title, artist, album, source = 'local', sourceId, lines, timeline = 'none', duration = 0, lang = null }) {
   return {
     id: `${dateStamp()}-${hex(3)}`,
     title: title || '未命名歌曲',
@@ -446,6 +456,7 @@ function makeSongRecord({ title, artist, album, source = 'local', sourceId, line
     album: String(album || ''),
     source: source || 'local',
     sourceId: String(sourceId || ''),
+    lang: lang || detectLyricLang(lines) || null, // 语种：自动识别（识别不出为 null，随歌保存）
     duration: Number(duration) || 0,
     audio: null,
     timeline: lines ? timeline : 'none',
@@ -493,6 +504,7 @@ async function songs() {
     hasAudio: !!s.audio,
     audioSize: s.audio?.size || 0,
     timeline: s.timeline,
+    lang: s.lang || detectLyricLang(s.lines) || null, // 旧歌未存语种时按内容识别展示（打开时写回）
     lineCount: (s.lines || []).length,
     editedCount: (s.lines || []).filter((l) => l.wordsEdited || l.romaji != null).length,
     createdAt: s.createdAt,
@@ -594,6 +606,7 @@ async function createSong(input, onProgress) {
     source: 'local',
     lines: parsed ? parsed.lines : [],
     timeline: parsed ? parsed.timeline : 'none',
+    lang: detectLyricLang(parsed ? parsed.lines : []),
   });
   await idbPut('songs', rec);
 
@@ -625,6 +638,7 @@ async function importSong(payload) {
     source, sourceId, lines,
     timeline: payload.timeline || 'synced',
     duration: payload.duration,
+    lang: detectLyricLang(lines),
   });
   await idbPut('songs', rec);
   bus.emit('local:dirty', { type: 'song', id: rec.id });
@@ -792,10 +806,18 @@ function lineSummary(before, after) {
     const aw = (after.words || []).map((w) => w.t ?? '').join('\u0001');
     parts.push(bw === aw ? '读音/标记' : '分词');
   }
+  if (wmSig(before) !== wmSig(after)) parts.push('注音/标记');
   if (before.romaji !== after.romaji) parts.push('罗马音');
+  if (before.enIpa !== after.enIpa || before.koRomaji !== after.koRomaji) parts.push('注音');
   if (before.zh !== after.zh) parts.push('中文');
   if (before.time !== after.time) parts.push('时间');
   return parts.join('、') || '无变化';
+}
+
+function wmSig(line) {
+  const words = line.enWords || line.koWords;
+  if (!words) return '';
+  return words.map((w) => [w.t ?? '', w.p ?? 0, w.r ?? ''].join('\u0000')).join('\u0001');
 }
 
 /** 按行 ID 局部更新歌词行。lines: [{id, ...要修改的字段}]；record=true 写入编辑历史。 */
@@ -878,7 +900,7 @@ async function replaceLyrics(id, payload) {
           ln.id = old.id;
           usedIds.add(old.id);
         }
-        for (const k of ['words', 'wordsEdited', 'romaji', 'ruby']) {
+        for (const k of ['words', 'wordsEdited', 'romaji', 'ruby', 'enMarks', 'koMarks', 'enWords', 'koWords', 'enIpa', 'koRomaji']) {
           const empty = (v) => v == null || v === false || v === '';
           if (empty(ln[k]) && !empty(old[k])) ln[k] = deepClone(old[k]);
         }
@@ -893,6 +915,12 @@ async function replaceLyrics(id, payload) {
     songRec.lines = newLines.map(cleanLine);
     songRec.timeline = newLines.length ? timeline : 'none';
     songRec.syncInfo = null; // 歌词变了：允许重新自动获取逐字时间轴
+    // 用户手动指定过语种则以手动为准；否则按新歌词重新自动识别
+    if (!songRec.langManual) {
+      const detected = detectLyricLang(songRec.lines);
+      if (detected && detected !== songRec.lang) songRec.lang = detected;
+      else if (!detected) songRec.lang = null;
+    }
     if (payload.source) {
       songRec.lyricSource = { source: payload.source, sourceId: String(payload.sourceId || '') };
     }
