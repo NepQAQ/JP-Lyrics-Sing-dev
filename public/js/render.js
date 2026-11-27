@@ -62,11 +62,11 @@ function englishJpHTML(line, { inline = false } = {}) {
     const arc = m.link ? '<span class="liaison-arc" aria-hidden="true">⌒</span>' : '';
     const brk = m.brk ? '<span class="en-brk">/</span>' : '';
     if (!inline) {
-      return `<span class="${cls.join(' ')}" data-wi="${i}">${letters}${note}</span>${arc}${brk}`;
+      return `<span class="${cls.join(' ')}" data-wi="${i}">${letters}${note}${arc}</span>${brk}`;
     }
     const wipa = dict ? (lookupIPA(w.t, dict) || '') : '';
     return `<span class="${cls.join(' ')}" data-wi="${i}">`
-      + `<span class="w-jp">${letters}${note}</span><span class="w-ro">${escapeHTML(wipa)}</span></span>${arc}${brk}`;
+      + `<span class="w-jp">${letters}${note}</span><span class="w-ro">${escapeHTML(wipa)}</span>${arc}</span>${brk}`;
   }).join('');
 }
 

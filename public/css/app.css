@@ -335,11 +335,13 @@ body.lang-en .jp .en-word { position: relative; display: inline-block; }
   background: #e0457b; transform: rotate(-30deg); transform-origin: center;
   border-radius: 2px; pointer-events: none;
 }
-/* 连音：词间上方红色 ⌒ */
+/* 连音：词边界上方红色 ⌒（绝对定位覆盖层，不占文本流宽度，词间距不受影响） */
 .liaison-arc {
+  position: absolute; left: calc(100% + .12em); top: .1em; transform: translateX(-50%);
   color: var(--danger); font-size: .95em; font-weight: 700; line-height: 1;
-  vertical-align: .5em; margin: 0 -.12em; user-select: none; pointer-events: none;
+  white-space: nowrap; user-select: none; pointer-events: none;
 }
+body.layout-inline .liaison-arc { top: -.3em; }
 body.lang-en .jp .en-word.mk-link {
   text-decoration: underline; text-decoration-color: #8b5cf6; text-decoration-thickness: 2px; text-underline-offset: 4px;
 }
